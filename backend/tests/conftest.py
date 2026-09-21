@@ -19,6 +19,7 @@ import subprocess
 import sys
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 from fastapi import FastAPI
@@ -32,10 +33,33 @@ from app.main import create_app
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
-TEST_DATABASE_URL = os.environ.get(
-    "TEST_DATABASE_URL",
-    "postgresql+asyncpg://heimdall:heimdall@localhost:5433/heimdall_test",
+TEST_DATABASE_NAME = "heimdall_test"
+DEFAULT_TEST_DATABASE_URL = (
+    f"postgresql+asyncpg://heimdall:heimdall@localhost:5433/{TEST_DATABASE_NAME}"
 )
+
+
+def _resolve_test_database_url() -> str:
+    """Locate the database the suite may use.
+
+    `TEST_DATABASE_URL` wins when set. Otherwise the server is taken from
+    `DATABASE_URL`, which is how a continuous-integration job or a container
+    advertises its database, with the database name forced to the test one: the
+    suite migrates and writes to whatever it is given, so it must never be able
+    to reach a development database even when `DATABASE_URL` names one.
+    """
+    explicit = os.environ.get("TEST_DATABASE_URL")
+    if explicit:
+        return explicit
+
+    inherited = os.environ.get("DATABASE_URL")
+    if not inherited:
+        return DEFAULT_TEST_DATABASE_URL
+
+    return urlunsplit(urlsplit(inherited)._replace(path=f"/{TEST_DATABASE_NAME}"))
+
+
+TEST_DATABASE_URL = _resolve_test_database_url()
 
 # Tests must never inherit a developer's real environment.
 _TEST_ENV = {
