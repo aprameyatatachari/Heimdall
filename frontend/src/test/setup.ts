@@ -1,12 +1,23 @@
 import "@testing-library/jest-dom/vitest";
 
-import { afterAll, afterEach, beforeAll } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
 
 import { invalidateSession } from "@/api/client";
 
 import { server } from "./server";
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+
+beforeEach(() => {
+  // Tests exercise the landing page as a returning visitor sees it. The gate is
+  // a once-per-session overlay with its own tests; leaving it on would put a
+  // full-viewport plate over every other assertion.
+  try {
+    window.sessionStorage.setItem("heimdall.gate", "entered");
+  } catch {
+    // Storage is unavailable in this environment; the gate tests opt in anyway.
+  }
+});
 
 afterEach(() => {
   server.resetHandlers();

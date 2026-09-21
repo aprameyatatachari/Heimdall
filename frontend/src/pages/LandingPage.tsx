@@ -4,10 +4,12 @@ import { Backdrop } from "@/components/Backdrop";
 import { Disclaimer } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useSplashGate } from "@/hooks/useSplashGate";
 import { useReveal } from "@/hooks/useReveal";
 import { IMAGES } from "@/lib/images";
 
 import { PublicHeader } from "./parts/PublicHeader";
+import { SplashGate } from "./parts/SplashGate";
 
 const CAPABILITIES = [
   {
@@ -42,9 +44,11 @@ export function LandingPage() {
   useDocumentTitle("");
   const headline = useReveal<HTMLDivElement>(0);
   const principles = useReveal<HTMLDivElement>(0);
+  const { showGate, markEntered } = useSplashGate();
 
   return (
     <>
+      {showGate && <SplashGate onEntered={markEntered} />}
       <PublicHeader />
 
       <main id="main">

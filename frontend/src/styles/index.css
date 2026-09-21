@@ -182,6 +182,37 @@
       "zero" 1;
   }
 
+  /* --- The gate -----------------------------------------------------------
+     Scroll progress arrives as --gate-progress on <html>, written once per
+     animation frame. Everything here is a pure function of that number, so the
+     browser composites the whole reveal without React re-rendering.
+  ------------------------------------------------------------------------ */
+
+  .gate-content {
+    opacity: clamp(0, calc(1 - var(--gate-progress, 0) * 1.8), 1);
+    transform: translate3d(0, calc(var(--gate-progress, 0) * -5vh), 0);
+    will-change: opacity, transform;
+  }
+
+  /* Without WebGL the shader is not there to dissolve the plate, so the
+     photograph itself fades. The reveal still happens; it is simply quieter. */
+  .gate-plate[data-static="true"] .gate-photo {
+    opacity: clamp(0, calc(1 - var(--gate-progress, 0) * 1.45), 1);
+  }
+
+  /* The page header belongs to the landing page, not the gate, and the gate
+     carries its own top row. It fades in over the last third of the reveal. */
+  html[data-gate="open"] .hm-page-chrome {
+    opacity: clamp(0, calc(var(--gate-progress, 0) * 3 - 1.7), 1);
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gate-content {
+      transform: none;
+    }
+  }
+
   .hm-scrim-bottom {
     background: linear-gradient(
       to top,

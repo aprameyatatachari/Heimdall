@@ -26,7 +26,7 @@ export function PublicHeader() {
   return (
     <header
       className={cx(
-        "fixed inset-x-0 top-0 z-40 transition-colors duration-[240ms]",
+        "hm-page-chrome fixed inset-x-0 top-0 z-40 transition-colors duration-[240ms]",
         scrolled ? "bg-abyss/95 border-line border-b backdrop-blur" : "bg-transparent",
       )}
     >
