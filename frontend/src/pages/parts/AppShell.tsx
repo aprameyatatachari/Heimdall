@@ -3,7 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "@/auth/useAuth";
 import { Disclaimer } from "@/components/Disclaimer";
-import { Logo } from "@/components/Logo";
+import { Wordmark } from "@/components/Wordmark";
 import { cx } from "@/lib/cx";
 
 // Phase 9 onward fills these in. They are listed now so the shell's navigation
@@ -58,7 +58,7 @@ export function AppShell() {
       <header className="border-line bg-abyss/95 sticky top-0 z-40 border-b backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-4 px-4 md:px-8 lg:px-16">
           <Link to="/app" className="flex shrink-0 items-center">
-            <Logo variant="wordmark" className="h-4" />
+            <Wordmark className="text-ink text-sm" />
           </Link>
 
           <nav aria-label="Main" className="hidden flex-1 items-center gap-1 lg:flex">

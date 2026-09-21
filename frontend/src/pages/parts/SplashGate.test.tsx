@@ -66,8 +66,10 @@ describe("the gate", () => {
     renderApp(<AppRoutes />, { route: "/" });
 
     await screen.findByRole("button", { name: /slide up to enter/i });
-    // The lockup is artwork; its accessible name carries the readable word.
-    expect(screen.getAllByAltText("Heimdall").length).toBeGreaterThan(0);
+    // Asserted by role rather than by alt text: the lockup is assembled from an
+    // image and a live-type wordmark, and which of the two carries the name is
+    // an implementation detail. That it is announced, in Latin, is not.
+    expect(screen.getAllByRole("img", { name: "Heimdall" }).length).toBeGreaterThan(0);
   });
 
   it("falls back to the photograph when the shader cannot run", async () => {

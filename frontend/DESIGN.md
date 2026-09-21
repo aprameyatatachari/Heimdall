@@ -222,30 +222,48 @@ A WIDER HORIZON` marks in the mockups:
 
 ### 4.1 The logo
 
-The supplied artwork is a **horn fused with an open eye**, above a runic
-wordmark reading **HEIMDALLR**. Three variants ship, each light and dark:
+The supplied artwork is a **horn fused with an open eye**. It ships as the mark
+alone and as a flattened lockup with the runic wordmark, each light and dark.
 
-| Variant    | Use                                                                                           |
-| ---------- | --------------------------------------------------------------------------------------------- |
-| `wordmark` | The default identity. Header, footer, auth.                                                   |
-| `mark`     | Where the lockup is too wide: favicon, empty and error states, the Gjallarhorn section glyph. |
-| `full`     | The lockup. Splash, report cover, social card, anywhere with room to breathe.                 |
+**The wordmark is type, not artwork.** It reads `HEIMDALL` in Latin letters, and
+hovering it turns the whole word into runes — one letter after the next, left to
+right, each arriving out of a blur — then lets it settle back the same way when
+the cursor leaves. The runic layer reads `HEIMDALR`, the Old Norse form.
 
-**Spelling follows the alphabet.** In runes it is **HEIMDALLR**, the Old Norse
-form, which is what the wordmark spells. In Latin letters it is **Heimdall** —
-page titles, prose, reports, documentation, and the `alt` text on the wordmark,
-which is Latin text standing in for the image and so takes the Latin spelling.
-Never write "Heimdallr" in Latin letters.
+The effect is pure CSS `:hover`. The cascade is eight transition delays derived
+from each letter's index: 45ms apart on the turn, reversed and quicker on the
+way back so the word resolves to Latin promptly rather than lingering. No
+pointer listener to throttle, no animation frame to cancel, nothing to leak.
 
-**The wordmark is artwork, not type.** That settles the Elder Futhark question:
-no font has to be licensed, self-hosted or subset, and the wordmark renders
-identically on every machine. It also means the runes cannot be read by anything
-that reads text, so every instance carries `alt="Heimdall"`. An instance sitting
-beside text that already names the product is marked decorative instead, so the
-name is not announced twice.
+Eight equal columns rather than tracked text, because the rune advances run
+about twelve per cent narrower than the Latin ones; matched tracking drifts the
+two alphabets apart letter by letter, and the runes would no longer sit under
+the letters they replace.
 
-The source files place the artwork inside a 2752×1536 canvas that is mostly
-empty. They are trimmed to their alpha bounding box and exported to
+| Variant  | Use                                                                                                  |
+| -------- | ---------------------------------------------------------------------------------------------------- |
+| Wordmark | The default identity. Header, footer, auth, and the splash lockup.                                   |
+| `mark`   | Where type will not do: favicon, above the auth card, empty and error states, the Gjallarhorn glyph. |
+| `full`   | The flattened lockup. Report cover and social card, where there is no cursor to reveal anything.     |
+
+**Spelling follows the alphabet.** In runes it is HEIMDALLR, the Old Norse form,
+which is what the flattened artwork spells; the live wordmark carries its
+eight-letter form, `HEIMDALR`. In Latin letters it is **Heimdall** — page
+titles, prose, reports, documentation, and the wordmark's accessible name, which
+is Latin text standing in for the mark. Never write "Heimdallr" in Latin letters.
+
+The runic layer is hidden from assistive technology and excluded from selection,
+so the name is announced once and a copy of the wordmark yields `HEIMDALL`
+rather than the two alphabets interleaved letter by letter.
+
+The rune face is **Elder Futhark by Curtis Clark (1996)**, subset to eight
+letters and self-hosted. It is licensed _free for personal use_; see `README.md`
+before deploying commercially. It maps rune shapes onto Latin letter positions
+rather than onto the Unicode runic block, which is why both layers are real
+text.
+
+The mark's source files place the artwork inside a 2752×1536 canvas that is
+mostly empty. They are trimmed to their alpha bounding box and exported to
 `public/brand/` as WebP with a PNG fallback; the raw files stay in `resources/`
 as the source of truth.
 

@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 import { Backdrop } from "@/components/Backdrop";
 import { Disclaimer } from "@/components/Disclaimer";
-import { Logo } from "@/components/Logo";
+import { Wordmark } from "@/components/Wordmark";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useSplashGate } from "@/hooks/useSplashGate";
 import { useReveal } from "@/hooks/useReveal";
@@ -141,7 +141,7 @@ export function LandingPage() {
         <div className="mx-auto max-w-[1440px] px-4 py-12 md:px-8 lg:px-16">
           <div className="flex flex-wrap items-center justify-between gap-6">
             <Link to="/" className="flex items-center">
-              <Logo variant="wordmark" className="h-5" />
+              <Wordmark className="text-ink text-base" />
             </Link>
             <nav aria-label="Footer" className="text-ink-muted flex gap-6 text-sm">
               <Link to="/methodology" className="hover:text-gold">

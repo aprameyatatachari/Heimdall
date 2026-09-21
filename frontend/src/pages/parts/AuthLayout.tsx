@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Backdrop } from "@/components/Backdrop";
 import { Disclaimer } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
+import { Wordmark } from "@/components/Wordmark";
 import { IMAGES } from "@/lib/images";
 
 /**
@@ -28,7 +29,7 @@ export function AuthLayout({
 
       <header className="relative z-10 mx-auto flex h-16 w-full max-w-[1440px] items-center px-4 md:px-8">
         <Link to="/" className="flex items-center">
-          <Logo variant="wordmark" className="h-5" />
+          <Wordmark className="text-ink text-base" />
         </Link>
       </header>
 

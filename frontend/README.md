@@ -80,6 +80,23 @@ failure states throughout.
 No analytics, stress-testing, signal or report screens exist yet. Those arrive in
 Phases 10 and 11. See `AGENTS.md` section 9.
 
+## Fonts
+
+The wordmark's runic layer is set in **Elder Futhark by Curtis Clark (1996)**,
+subset to the eight letters it needs and self-hosted at
+`public/fonts/elder-futhark-subset.woff2` (764 bytes).
+
+> **Licence:** the font's own name table reads _"Free for personal use"_.
+> That restriction travels with the file. Check it covers this deployment
+> before shipping commercially. If it does not, the swap is small: any runic
+> face works, and one under the SIL Open Font Licence — Noto Sans Runic, for
+> instance — would also cover the real Unicode runic block.
+
+The face maps rune shapes onto Latin letter positions rather than onto the
+Unicode runic block, so `ᚺᛖᛁᛗᛞᚨᛚᚱ` would render as tofu. The markup carries
+Latin letters and the font draws the runes, which has the happy consequence of
+keeping both layers real text.
+
 ## Notes for the next phase
 
 - **No generated imagery is in place.** Heroes and backdrops render as gradients.

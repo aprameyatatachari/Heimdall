@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 
-import { Logo } from "@/components/Logo";
+import { Wordmark } from "@/components/Wordmark";
 import { cx } from "@/lib/cx";
 
 const LINKS = [
@@ -32,7 +32,7 @@ export function PublicHeader() {
     >
       <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-4 md:px-8 lg:px-16">
         <Link to="/" className="flex items-center">
-          <Logo variant="wordmark" className="h-5" />
+          <Wordmark className="text-ink text-base" />
         </Link>
 
         <nav aria-label="Main" className="hidden items-center gap-8 md:flex">
