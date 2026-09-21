@@ -1,0 +1,234 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Heimdall design tokens. The single source of truth is DESIGN.md; this file
+   is that document expressed as Tailwind v4 theme variables, so every token is
+   available both as a CSS custom property and as a utility class.
+--------------------------------------------------------------------------- */
+
+@theme {
+  /* --- Ground ------------------------------------------------------------ */
+  --color-void: #04090c;
+  --color-abyss: #070d11;
+  --color-surface: #0b131a;
+  --color-surface-2: #101a22;
+  --color-surface-3: #16222c;
+
+  /* --- Edges ------------------------------------------------------------- */
+  --color-line: #1b2831;
+  --color-line-soft: #141f27;
+  --color-line-strong: #2a3a46;
+
+  /* --- Ink --------------------------------------------------------------- */
+  --color-ink: #f2f5f7;
+  --color-ink-muted: #b6bcc1;
+  --color-ink-dim: #7c868e;
+  --color-ink-faint: #4c565e;
+
+  /* --- Gold: the single accent ------------------------------------------- */
+  --color-gold: #fdd89d;
+  --color-gold-bright: #fce8b3;
+  --color-gold-deep: #c9a46b;
+  --color-on-gold: #100c05;
+
+  /* --- Horizon (Bifröst) ------------------------------------------------- */
+  --color-horizon-1: #8fb4d9;
+  --color-horizon-2: #c9b7e8;
+  --color-horizon-3: #f0c9a8;
+
+  /* --- Semantics: dusty, never neon -------------------------------------- */
+  --color-positive: #7fa88a;
+  --color-positive-dim: #2a3a31;
+  --color-negative: #c08078;
+  --color-negative-dim: #3a2b29;
+  --color-caution: #d6b06a;
+  --color-neutral: #8a9299;
+
+  /* --- Severity (Gjallarhorn). Never the only signal. --------------------- */
+  --color-sev-info: #8fa6b8;
+  --color-sev-elevated: #d6b06a;
+  --color-sev-high: #d08f63;
+  --color-sev-critical: #c4675c;
+
+  /* --- Typefaces --------------------------------------------------------- */
+  --font-rune: "Elder Futhark", "Cormorant Garamond", Georgia, serif;
+  --font-display: "Cormorant Garamond", "EB Garamond", Georgia, serif;
+  --font-ritual: "Skranji", "Cormorant Garamond", Georgia, serif;
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", monospace;
+
+  /* --- Type scale -------------------------------------------------------- */
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: clamp(2.5rem, 1.6rem + 4vw, 4rem);
+  --text-4xl: clamp(3.25rem, 1.8rem + 6.4vw, 6rem);
+  --text-5xl: clamp(4rem, 1.5rem + 11vw, 9rem);
+
+  /* --- Radii ------------------------------------------------------------- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 20px;
+
+  /* --- Motion ------------------------------------------------------------ */
+  --ease-out-hm: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-hm: cubic-bezier(0.76, 0, 0.24, 1);
+  --ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+@layer base {
+  :root {
+    --hm-dur-instant: 100ms;
+    --hm-dur-fast: 160ms;
+    --hm-dur-base: 240ms;
+    --hm-dur-slow: 480ms;
+    --hm-dur-cinematic: 900ms;
+    color-scheme: dark;
+  }
+
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-abyss);
+    color: var(--color-ink);
+    font-family: var(--font-ui);
+    font-size: var(--text-base);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Focus is never removed. DESIGN.md section 9. */
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background: var(--color-gold);
+    color: var(--color-on-gold);
+  }
+
+  /* A reduced-motion preference is a full stop, not a slowdown.
+     DESIGN.md section 7.1 rule 4. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* The Inner Realm surface: dark glass, one hairline, a top highlight as
+     though catching light from above. DESIGN.md section 5.3. */
+  .hm-panel {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.028) 0%, rgba(255, 255, 255, 0) 40%),
+      var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.03),
+      0 12px 32px -18px rgba(0, 0, 0, 0.9);
+  }
+
+  /* Outer Realm only: floats over photography. An opaque fallback ships for
+     browsers without backdrop-filter. DESIGN.md section 5.4. */
+  .hm-glass {
+    background: rgba(8, 13, 18, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 32px 80px -32px rgba(0, 0, 0, 0.85);
+  }
+
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    .hm-glass {
+      background: rgba(8, 13, 18, 0.72);
+      -webkit-backdrop-filter: blur(24px) saturate(120%);
+      backdrop-filter: blur(24px) saturate(120%);
+    }
+  }
+
+  .hm-eyebrow {
+    font-family: var(--font-ritual);
+    font-size: var(--text-2xs);
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--color-ink-dim);
+  }
+
+  /* Money and every other figure aligns in columns and never jitters. */
+  .hm-numeric {
+    font-variant-numeric: tabular-nums slashed-zero;
+    font-feature-settings:
+      "tnum" 1,
+      "zero" 1;
+  }
+
+  .hm-wordmark {
+    font-family: var(--font-rune);
+    letter-spacing: 0.18em;
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  .hm-scrim-bottom {
+    background: linear-gradient(
+      to top,
+      rgba(4, 9, 12, 0.94) 0%,
+      rgba(4, 9, 12, 0.72) 28%,
+      rgba(4, 9, 12, 0) 62%
+    );
+  }
+
+  .hm-scrim-left {
+    background: linear-gradient(
+      to right,
+      rgba(4, 9, 12, 0.94) 0%,
+      rgba(4, 9, 12, 0.7) 34%,
+      rgba(4, 9, 12, 0) 68%
+    );
+  }
+}
+
+@layer utilities {
+  /* Scroll reveal. Lines rise out of a mask, once, never on the way back up.
+     DESIGN.md section 7.3. */
+  .hm-reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+      opacity var(--hm-dur-cinematic) var(--ease-out-hm),
+      transform var(--hm-dur-cinematic) var(--ease-out-hm);
+  }
+
+  .hm-reveal[data-revealed="true"] {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hm-reveal {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}

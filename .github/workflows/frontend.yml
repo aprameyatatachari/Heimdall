@@ -1,0 +1,99 @@
+name: Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  quality:
+    name: Format, lint, types, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Production build
+        run: npx vite build
+
+  contract:
+    name: API types match the backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.6"
+          enable-cache: true
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --all-extras
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # The committed schema and generated types must match what the backend
+      # actually serves. A drift here means the frontend is typed against an API
+      # that no longer exists, which would otherwise only surface in production.
+      - name: Re-export the OpenAPI schema
+        run: npm run api:schema
+
+      - name: Regenerate types
+        run: npm run api:types
+
+      - name: Fail if the contract drifted
+        run: |
+          if ! git diff --quiet -- src/api/openapi.json src/api/schema.d.ts; then
+            echo "::error::The backend contract changed. Run 'npm run api:schema && npm run api:types' in frontend/ and commit the result."
+            git diff --stat -- src/api/openapi.json src/api/schema.d.ts
+            exit 1
+          fi
+          echo "Frontend types match the backend contract."
