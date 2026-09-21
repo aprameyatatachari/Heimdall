@@ -101,6 +101,34 @@ describe("the gate", () => {
     expect(document.documentElement.style.getPropertyValue("--gate-progress")).not.toBe("");
   });
 
+  it("holds the page still instead of letting it slide in", async () => {
+    renderApp(<AppRoutes />, { route: "/" });
+
+    await screen.findByRole("button", { name: /slide up to enter/i });
+    // The defect this replaced: the gate owned a scroll runway and the landing
+    // page arrived in normal flow beneath it, so it slid up into view as the
+    // mist cleared rather than being revealed by it. The plate is a fixed
+    // overlay now and the document is locked at the top.
+    expect(document.querySelector(".gate-plate")).toHaveClass("fixed");
+    expect(document.body.style.overflow).toBe("hidden");
+  });
+
+  it("gives the page back its scroll when it is done", async () => {
+    const { user } = renderApp(<AppRoutes />, { route: "/" });
+
+    const enter = await screen.findByRole("button", { name: /slide up to enter/i });
+    await user.click(enter);
+
+    // The control eases the reveal home over 1.1s, so this outlasts waitFor's
+    // default deliberately rather than by accident.
+    await waitFor(() => expect(document.querySelector(".gate-plate")).not.toBeInTheDocument(), {
+      timeout: 3000,
+    });
+    // A gate that forgot to release overflow would leave the whole site frozen.
+    expect(document.body.style.overflow).toBe("");
+    expect(document.body.style.paddingRight).toBe("");
+  });
+
   it("cleans up after itself when it unmounts", async () => {
     const { unmount } = renderApp(<AppRoutes />, { route: "/" });
 

@@ -56,3 +56,9 @@ if (typeof window.IntersectionObserver === "undefined") {
   }
   window.IntersectionObserver = NoopObserver as unknown as typeof IntersectionObserver;
 }
+
+// jsdom has no WebGL. Returning null rather than letting it log "not
+// implemented" for every probe keeps the output readable and makes the gate's
+// fallback path deterministic instead of incidental.
+HTMLCanvasElement.prototype.getContext = (() =>
+  null) as unknown as typeof HTMLCanvasElement.prototype.getContext;

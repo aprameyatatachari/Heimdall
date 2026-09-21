@@ -172,10 +172,10 @@ Full-viewport portrait plate: star, runic wordmark, `SEE FURTHER`, and
 `A CLEARER TOMORROW / THROUGH A WIDER HORIZON` over the cliff-and-citadel vista.
 `SLIDE UP TO ENTER` at the base.
 
-Scrolling dissolves the plate (`DESIGN.md` §7.4); the control scrolls past it
-for anyone who would rather not. Shown **once per session**. A deep link to any
-other route never sees it. Under reduced motion, or without WebGL, the
-photograph fades on the same scroll progress instead of dissolving.
+Scrolling, swiping or the control dissolves the plate off the landing page,
+which sits still behind it (`DESIGN.md` §7.4). Shown **once per session**. A
+deep link to any other route never sees it. Under reduced motion, or without
+WebGL, the photograph fades on the same progress instead of dissolving.
 
 ### 6.2 Landing — `/`
 

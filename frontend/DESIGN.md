@@ -557,31 +557,33 @@ fade only, 200ms, no translation.
 **The Gate (splash → landing).** The single authored moment of the whole site,
 and the only place a shader is allowed.
 
-The splash is a sticky plate over one viewport of scroll runway, with the
-lockup centred and `SLIDE UP TO ENTER` beneath. Scrolling does not slide the
-plate away — a WebGL dissolve takes it apart into its own weather. Each pixel
-carries a resistance made mostly of drifting noise, with a vertical bias so the
-sky goes first and the horizon band holds longest: the citadel and the watchman
-on his cliff are the last things the mist takes. The dissolving edge picks up
-`--hm-gold`, so the effect reads as light in cloud rather than as an eraser.
+The landing page is behind the plate the whole time, already at the top of the
+document and completely still. The plate dissolves off it in place: a WebGL
+shader gives each pixel a resistance made mostly of drifting noise, with a
+vertical bias so the sky goes first and the horizon band holds longest — the
+citadel and the watchman on his cliff are the last things the mist takes. The
+dissolving edge picks up `--hm-gold`, so it reads as light in cloud rather than
+as an eraser. Underneath, the landing hero's own photograph of the same world
+comes through, and the two cross-dissolve.
 
 Mechanics that matter:
 
-- **The landing page is mounted underneath the whole time.** The gate is an
-  overlay on a scroll runway, not a route. Nothing is hijacked; native momentum,
-  touch and find-in-page all still work.
-- **Progress is one number on `<html>`,** written once per animation frame as
-  `--gate-progress`. The plate, its type and the page header are all pure
-  functions of it, so the browser composites the reveal without React
-  re-rendering.
-- **Measure from the elements, never from `window.innerHeight`.** The runway is
-  sized in `svh`, which does not equal `innerHeight` everywhere; mixing them
-  makes progress run fast and the reveal finish before the runway does.
+- **The page does not move.** An earlier build gave the gate a scroll runway and
+  let the landing page arrive in normal flow beneath it, which meant the page
+  slid up into view as the mist cleared instead of being revealed by it. Holding
+  it still is the whole point of the effect.
+- **That costs one deliberate trade:** while the gate is open the document does
+  not scroll, and the gesture drives the reveal. Bounded to one screen, once per
+  session, finished by scroll, swipe, arrow, space, Escape or the control, and
+  released for good afterwards. This is the only place in the product allowed to
+  take the scroll.
+- **Progress is one number on `<html>`,** written as `--gate-progress`. The
+  plate, its type and the page header are pure functions of it, so the browser
+  composites the reveal without React re-rendering.
 - **Every part of the effect is optional.** No WebGL, a lost context, a texture
   that will not decode, or a reduced-motion preference each drop to the still
   photograph fading on the same progress. The gate opens either way.
-- Shown once per session (`sessionStorage`), always skippable by a real focusable
-  control, and never in front of a direct deep link.
+- Never in front of a direct deep link.
 
 **The Bifröst (Outer → Inner).** Crossing into the app after sign-in: a soft
 spectral sweep using `--hm-horizon-1/2/3` passes once across the viewport over
