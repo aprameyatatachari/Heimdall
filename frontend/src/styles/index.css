@@ -226,9 +226,10 @@
       opacity 190ms var(--ease-out-hm),
       transform 190ms var(--ease-out-hm),
       filter 190ms var(--ease-out-hm);
-    /* Settling back runs in reverse and quicker than the turn: the word should
-       resolve to Latin promptly once the cursor has gone, not linger. */
-    transition-delay: calc((7 - var(--i, 0)) * 16ms);
+    /* Settling back runs the same way the turn did, left to right, so the word
+       reads in one direction whichever alphabet it is heading for. Quicker than
+       the turn, so it resolves to Latin promptly rather than lingering. */
+    transition-delay: calc(var(--i, 0) * 30ms);
   }
 
   .hm-wordmark:hover .hm-wordmark__latin,

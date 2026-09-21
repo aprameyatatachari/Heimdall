@@ -227,13 +227,14 @@ alone and as a flattened lockup with the runic wordmark, each light and dark.
 
 **The wordmark is type, not artwork.** It reads `HEIMDALL` in Latin letters, and
 hovering it turns the whole word into runes — one letter after the next, left to
-right, each arriving out of a blur — then lets it settle back the same way when
-the cursor leaves. The runic layer reads `HEIMDALR`, the Old Norse form.
+right, each arriving out of a blur — and letting go sweeps it back to Latin the
+same way, left to right again. The runic layer reads `HEIMDALR`, the Old Norse form.
 
 The effect is pure CSS `:hover`. The cascade is eight transition delays derived
-from each letter's index: 45ms apart on the turn, reversed and quicker on the
-way back so the word resolves to Latin promptly rather than lingering. No
-pointer listener to throttle, no animation frame to cancel, nothing to leak.
+from each letter's index: 45ms apart on the turn and 30ms on the return, both
+running left to right, so the word always reads in one direction whichever
+alphabet it is heading for. No pointer listener to throttle, no animation frame
+to cancel, nothing to leak.
 
 Eight equal columns rather than tracked text, because the rune advances run
 about twelve per cent narrower than the Latin ones; matched tracking drifts the
