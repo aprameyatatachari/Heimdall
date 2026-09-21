@@ -74,7 +74,33 @@ Actions for CI, Vercel plus managed PostgreSQL for production.
 ## Quick start
 
 Requirements: [Docker Desktop](https://docs.docker.com/desktop/),
-[uv](https://docs.astral.sh/uv/), Python 3.12.
+[uv](https://docs.astral.sh/uv/), Python 3.12, Node 20.19 or newer.
+
+### Windows: one command
+
+`start.bat` brings up PostgreSQL, applies migrations, and starts the API and the
+web application in their own windows. `stop.bat` shuts everything down and frees
+the ports, and is safe to run at any time.
+
+```bat
+start.bat
+stop.bat
+```
+
+| | |
+| --- | --- |
+| Web | <http://localhost:5173> |
+| API | <http://127.0.0.1:8000> |
+| API docs | <http://127.0.0.1:8000/docs> |
+| Database | `localhost:5433` |
+
+`start.bat` refuses to run if either port is already taken and names the process
+holding it, because Windows reports that case only as `WinError 10013`.
+
+`stop.bat -KeepDatabase` leaves PostgreSQL running. `stop.bat` stops only
+processes whose command line identifies them as part of this project; if a port
+is held by something else it says so and leaves it alone, and `stop.bat -Force`
+overrides that.
 
 ### Everything in containers
 
@@ -103,12 +129,25 @@ uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 ```
 
+### The frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Served at <http://localhost:5173>, proxying `/api` to the backend so the refresh
+cookie stays first-party. See [`frontend/README.md`](frontend/README.md).
+
 ### Stopping
 
 ```bash
 docker compose down            # keep data
 docker compose down -v         # also delete the database volume
 ```
+
+On Windows, `stop.bat` does all of this and frees the application ports too.
 
 ## Tests and checks
 

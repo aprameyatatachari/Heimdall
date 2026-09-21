@@ -4,3 +4,7 @@
 
 # Committed market-data and CSV fixtures are compared byte-for-byte by tests.
 *.csv text eol=lf
+
+# Batch files are parsed line by line by cmd.exe and need CRLF.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
