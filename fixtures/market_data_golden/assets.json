@@ -1,0 +1,20 @@
+[
+  {
+    "symbol": "GLDA",
+    "name": "Golden Test Instrument A",
+    "asset_type": "equity",
+    "exchange": "TEST",
+    "currency": "USD",
+    "sector": "Technology",
+    "industry": "Software"
+  },
+  {
+    "symbol": "GLDB",
+    "name": "Golden Test Instrument B",
+    "asset_type": "equity",
+    "exchange": "TEST",
+    "currency": "USD",
+    "sector": "Healthcare",
+    "industry": "Pharmaceuticals"
+  }
+]

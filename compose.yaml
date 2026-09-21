@@ -1,0 +1,69 @@
+# Local development and integration testing only.
+# Production runs on Vercel Functions with managed PostgreSQL; see docs/deployment.md.
+
+name: heimdall
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: heimdall-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-heimdall}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-heimdall}
+      POSTGRES_DB: ${POSTGRES_DB:-heimdall}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - heimdall-db-data:/var/lib/postgresql/data
+      - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/10-init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-heimdall} -d ${POSTGRES_DB:-heimdall}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: heimdall-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      DEBUG: ${DEBUG:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-console}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-heimdall}:${POSTGRES_PASSWORD:-heimdall}@db:5432/${POSTGRES_DB:-heimdall}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:5173}
+      # The fixture provider is the only market-data source, and the fixtures are
+      # mounted rather than baked into the image so it stays lean.
+      MARKET_DATA_FIXTURE_ROOT: /app/fixtures/market_data
+    volumes:
+      - ./fixtures:/app/fixtures:ro
+    ports:
+      - "${API_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  # One-shot service that applies database migrations.
+  # Usage: docker compose run --rm migrate
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: heimdall-migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-heimdall}:${POSTGRES_PASSWORD:-heimdall}@db:5432/${POSTGRES_DB:-heimdall}
+    command: ["alembic", "upgrade", "head"]
+    profiles: ["tools"]
+    restart: "no"
+
+volumes:
+  heimdall-db-data:

@@ -1,0 +1,6 @@
+# Normalize to LF in the repository and in the working tree. The container image
+# and the database init script are consumed by Linux, where CRLF breaks them.
+* text=auto eol=lf
+
+# Committed market-data and CSV fixtures are compared byte-for-byte by tests.
+*.csv text eol=lf

@@ -1,0 +1,165 @@
+name: Backend
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: backend
+
+env:
+  UV_VERSION: "0.11.6"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  quality:
+    name: Format, lint, types, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Check formatting
+        run: uv run ruff format --check .
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Type check
+        run: uv run mypy app
+
+      - name: Unit tests
+        run: uv run pytest --cov --cov-report=term-missing
+
+  audit:
+    name: Dependency vulnerability scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      # Advisory data changes without any code change, so a new advisory should
+      # surface here without turning every unrelated pull request red.
+      - name: Audit dependencies
+        continue-on-error: true
+        run: uv run pip-audit --strict --progress-spinner off
+
+  integration:
+    name: Migrations and integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: heimdall
+          POSTGRES_PASSWORD: heimdall
+          POSTGRES_DB: heimdall_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U heimdall -d heimdall_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://heimdall:heimdall@localhost:5432/heimdall_test
+      ENVIRONMENT: test
+      RUN_INTEGRATION_TESTS: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Apply migrations from an empty database
+        run: uv run alembic upgrade head
+
+      - name: Verify migrations are reversible
+        run: |
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+
+      - name: Integration tests
+        run: uv run pytest -m integration
+
+  container:
+    name: Container build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          load: true
+          tags: heimdall-api:ci
+
+      - name: Confirm the image does not run as root
+        run: |
+          user="$(docker image inspect heimdall-api:ci --format '{{.Config.User}}')"
+          test "$user" = "heimdall"
+
+      - name: Scan the image for known vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        continue-on-error: true
+        with:
+          image-ref: heimdall-api:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: Confirm the image starts and answers its health probe
+        run: |
+          docker run -d --name heimdall-smoke -p 8099:8000 -e ENVIRONMENT=local -e DATABASE_URL=postgresql+asyncpg://nobody:nobody@127.0.0.1:1/none heimdall-api:ci
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8099/health > /dev/null; then
+              echo "health probe answered"
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8099/health
+          # Readiness must fail without a reachable database.
+          code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8099/ready)"
+          test "$code" = "503"
+          docker rm -f heimdall-smoke

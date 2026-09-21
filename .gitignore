@@ -1,0 +1,40 @@
+# The build specification is intentionally untracked.
+prompt.md
+
+# --- Secrets ----------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+dist/
+build/
+
+# --- Node / frontend (used from Phase 8) ------------------------------------
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# --- Tooling and editors ----------------------------------------------------
+.vercel/
+.idea/
+.vscode/
+*.log
+
+# --- OS ---------------------------------------------------------------------
+.DS_Store
+Thumbs.db
