@@ -374,8 +374,12 @@ Any text over photography sits on a scrim. Two standard forms:
   rgba(4, 9, 12, 0.72) 28%,
   rgba(4, 9, 12, 0) 62%
 );
---hm-scrim-left: linear-gradient(to right,
-    rgba(4,9,12,0.92) 0%, rgba(4,9,12,0.78) 45%, rgba(4,9,12,0) 70%);
+--hm-scrim-left: linear-gradient(
+  to right,
+  rgba(4, 9, 12, 0.92) 0%,
+  rgba(4, 9, 12, 0.78) 45%,
+  rgba(4, 9, 12, 0) 70%
+);
 ```
 
 Verify the contrast against the **brightest pixel** the text can overlap, at

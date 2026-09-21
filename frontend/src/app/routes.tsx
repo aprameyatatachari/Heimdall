@@ -2,6 +2,10 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import { RequireAuth } from "@/auth/RequireAuth";
 import { AppHomePage } from "@/pages/AppHomePage";
+import { PortfolioHoldingsTab } from "@/pages/PortfolioHoldingsTab";
+import { PortfolioLayout } from "@/pages/PortfolioLayout";
+import { PortfolioListPage } from "@/pages/PortfolioListPage";
+import { PortfolioOverviewTab } from "@/pages/PortfolioOverviewTab";
 import { LandingPage } from "@/pages/LandingPage";
 import { LimitationsPage } from "@/pages/LimitationsPage";
 import { LoginPage } from "@/pages/LoginPage";
@@ -29,7 +33,12 @@ export function AppRoutes() {
       <Route element={<RequireAuth />}>
         <Route path="/app" element={<AppShell />}>
           <Route index element={<AppHomePage />} />
-          {/* Phases 9 to 11 mount their screens here. */}
+          <Route path="portfolios" element={<PortfolioListPage />} />
+          <Route path="portfolios/:portfolioId" element={<PortfolioLayout />}>
+            <Route index element={<PortfolioOverviewTab />} />
+            <Route path="holdings" element={<PortfolioHoldingsTab />} />
+          </Route>
+          {/* Phases 10 and 11 mount their screens here. */}
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Route>
       </Route>

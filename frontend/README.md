@@ -67,13 +67,18 @@ resources/    logos, mockups and reference imagery (never shipped)
 
 ## Phase status
 
-Phase 8 — foundation — is complete: build tooling, design tokens, routing, the
-API client, generated types, session handling, sign-in and registration,
-protected routes, the application shell, error handling and continuous
-integration.
+**Phase 8 — foundation.** Build tooling, design tokens, routing, the API client,
+generated types, session handling, sign-in and registration, protected routes,
+the application shell, error handling and continuous integration.
 
-No portfolio, analytics, stress-testing, signal or report screens exist yet.
-Those arrive in Phases 9 to 11, in that order. See `AGENTS.md` section 9.
+**Phase 9 — portfolio management.** Portfolio list, creation, editing and
+deletion; the portfolio detail area with its overview and holdings tabs;
+positions added, edited and removed; asset search; CSV import with row-level
+error reporting; and market-data refresh. Empty, loading, partial, stale and
+failure states throughout.
+
+No analytics, stress-testing, signal or report screens exist yet. Those arrive in
+Phases 10 and 11. See `AGENTS.md` section 9.
 
 ## Notes for the next phase
 
