@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 
+import { Backdrop } from "@/components/Backdrop";
 import { Disclaimer } from "@/components/Disclaimer";
 import { Star } from "@/components/Star";
 import { Wordmark } from "@/components/Wordmark";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useReveal } from "@/hooks/useReveal";
+import { IMAGES } from "@/lib/images";
 
 import { PublicHeader } from "./parts/PublicHeader";
 
@@ -51,11 +53,10 @@ export function LandingPage() {
             PROMPTS.md section 2. The background image is decorative; every word
             here is live text. */}
         <section className="relative flex min-h-[92vh] items-center overflow-hidden">
-          <div
-            aria-hidden="true"
-            className="from-void via-abyss to-surface absolute inset-0 bg-gradient-to-br"
-          />
-          <div aria-hidden="true" className="hm-scrim-left absolute inset-0" />
+          {/* The left scrim alone is what the 8.53:1 headline measurement assumes.
+              Adding the bottom scrim on top of it darkens the whole frame at short
+              viewport heights and hides the photograph entirely. */}
+          <Backdrop image={IMAGES.heroCitadel} scrim="left" position="object-[62%_center]" />
 
           <div className="relative mx-auto w-full max-w-[1440px] px-4 py-24 md:px-8 lg:px-16">
             <div ref={headline} className="hm-reveal max-w-2xl">

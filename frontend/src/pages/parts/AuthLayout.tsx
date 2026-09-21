@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
 
+import { Backdrop } from "@/components/Backdrop";
 import { Disclaimer } from "@/components/Disclaimer";
 import { Star } from "@/components/Star";
 import { Wordmark } from "@/components/Wordmark";
+import { IMAGES } from "@/lib/images";
 
 /**
  * The shared frame for sign-in and registration: a glass card centred over the
@@ -21,10 +23,9 @@ export function AuthLayout({
 }) {
   return (
     <div className="relative flex min-h-dvh flex-col">
-      <div
-        aria-hidden="true"
-        className="from-void via-abyss to-surface-2 absolute inset-0 bg-gradient-to-b"
-      />
+      {/* The card carries its own contrast, so this backdrop takes a flat wash
+          rather than a directional scrim. */}
+      <Backdrop image={IMAGES.heroCitadel} scrim="flat" position="object-[58%_center]" />
 
       <header className="relative z-10 mx-auto flex h-16 w-full max-w-[1440px] items-center px-4 md:px-8">
         <Link to="/" className="flex items-center gap-3">
@@ -53,8 +54,10 @@ export function AuthLayout({
       </main>
 
       <footer className="relative z-10 mx-auto w-full max-w-[1440px] px-4 pb-8 md:px-8">
-        <p className="hm-eyebrow mb-4 text-center">Security · Intelligence · Discipline</p>
-        <Disclaimer className="mx-auto text-center" />
+        <p className="hm-eyebrow text-ink-muted mb-4 text-center">
+          Security · Intelligence · Discipline
+        </p>
+        <Disclaimer onImage className="mx-auto text-center" />
       </footer>
     </div>
   );

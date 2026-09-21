@@ -374,16 +374,18 @@ Any text over photography sits on a scrim. Two standard forms:
   rgba(4, 9, 12, 0.72) 28%,
   rgba(4, 9, 12, 0) 62%
 );
---hm-scrim-left: linear-gradient(
-  to right,
-  rgba(4, 9, 12, 0.92) 0%,
-  rgba(4, 9, 12, 0.64) 34%,
-  rgba(4, 9, 12, 0) 68%
-);
+--hm-scrim-left: linear-gradient(to right,
+    rgba(4,9,12,0.92) 0%, rgba(4,9,12,0.78) 45%, rgba(4,9,12,0) 70%);
 ```
 
 Verify the contrast against the **brightest pixel** the text can overlap, at
 every breakpoint. A hero that passes on desktop and fails on mobile is a fail.
+
+These stop positions are measured against the shipping hero, not chosen by eye.
+An earlier ramp that looked fine left the headline at **3.34:1** over a patch of
+sunlit cloud; the values above hold the worst pixel under the headline at
+**8.53:1**. Re-measure whenever the hero image changes — the numbers belong to
+the photograph, not to the gradient.
 
 ### 5.7 Texture
 

@@ -199,12 +199,16 @@
     );
   }
 
+  /* Stop positions are measured, not guessed: the hero photograph carries
+     blown-white cloud into the headline column, where the text would otherwise
+     sit at 1.09:1. This ramp holds the worst pixel under the headline at
+     8.53:1. Re-measure if the hero image changes. */
   .hm-scrim-left {
     background: linear-gradient(
       to right,
-      rgba(4, 9, 12, 0.94) 0%,
-      rgba(4, 9, 12, 0.7) 34%,
-      rgba(4, 9, 12, 0) 68%
+      rgba(4, 9, 12, 0.92) 0%,
+      rgba(4, 9, 12, 0.78) 45%,
+      rgba(4, 9, 12, 0) 70%
     );
   }
 }
