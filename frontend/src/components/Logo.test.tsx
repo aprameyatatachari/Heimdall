@@ -6,9 +6,19 @@ import { Logo } from "./Logo";
 describe("Logo", () => {
   it("announces the Latin name, not the runes", () => {
     render(<Logo variant="wordmark" />);
-    // The artwork spells HEIMDALLR in Elder Futhark. Assistive technology, search
-    // engines and a copied link must all get the readable word.
+    // The artwork spells the Old Norse form in Elder Futhark. Assistive
+    // technology, search engines and a copied link must all get the readable
+    // word instead.
     expect(screen.getByAltText("Heimdall")).toBeInTheDocument();
+  });
+
+  it("takes the Latin spelling, never the Norse one", () => {
+    // Spelling follows the alphabet: runes carry the Norse form, Latin text
+    // carries "Heimdall", and alt text is Latin text. CLAUDE.md, Branding.
+    render(<Logo variant="wordmark" />);
+    const alt = screen.getByRole("img").getAttribute("alt");
+    expect(alt).toBe("Heimdall");
+    expect(alt).not.toMatch(/heimdallr/i);
   });
 
   it("stays silent when nearby text already names the product", () => {

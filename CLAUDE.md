@@ -123,7 +123,14 @@ decorative assets, or logos during backend phases.
   favicon, page titles, reports, and documentation.
 - **Gjallarhorn** names only the Early Warning System. It never brands general
   analytics, portfolios, stress tests, reports, or authentication.
-- The primary Heimdall logo must not contain a horn.
+- The logo is the supplied artwork in `frontend/resources/logos/`: a horn
+  fused with an open eye, above a runic wordmark. Three variants ship — mark,
+  wordmark, and the lockup of both.
+- **Spelling follows the alphabet.** In runes it is **HEIMDALLR**, the Old
+  Norse form, which is what the wordmark artwork spells. In Latin letters it
+  is **Heimdall** — page titles, prose, reports, documentation, and the `alt`
+  text on the runic wordmark, which is Latin text standing in for the image
+  and so takes the Latin spelling. Never write "Heimdallr" in Latin letters.
 - Backend domain terms stay technical: `AlertRule`, `WarningSignal`,
   `MonitoringRun`, `SignalStatus`, `SignalSeverity`. Never rename a technical
   concept after mythology.

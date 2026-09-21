@@ -231,17 +231,18 @@ wordmark reading **HEIMDALLR**. Three variants ship, each light and dark:
 | `mark`     | Where the lockup is too wide: favicon, empty and error states, the Gjallarhorn section glyph. |
 | `full`     | The lockup. Splash, report cover, social card, anywhere with room to breathe.                 |
 
-`CLAUDE.md` says the primary logo must not contain a horn. That rule predates
-this artwork and the artwork is the decision — noted here so the two documents
-are not read as disagreeing by accident. Update the rule or the logo, but do not
-leave the repository asserting both.
+**Spelling follows the alphabet.** In runes it is **HEIMDALLR**, the Old Norse
+form, which is what the wordmark spells. In Latin letters it is **Heimdall** —
+page titles, prose, reports, documentation, and the `alt` text on the wordmark,
+which is Latin text standing in for the image and so takes the Latin spelling.
+Never write "Heimdallr" in Latin letters.
 
 **The wordmark is artwork, not type.** That settles the Elder Futhark question:
 no font has to be licensed, self-hosted or subset, and the wordmark renders
 identically on every machine. It also means the runes cannot be read by anything
-that reads text, so every instance carries `alt="Heimdall"` — the Latin word,
-never the glyphs. An instance sitting beside text that already names the product
-is marked decorative instead, so the name is not announced twice.
+that reads text, so every instance carries `alt="Heimdall"`. An instance sitting
+beside text that already names the product is marked decorative instead, so the
+name is not announced twice.
 
 The source files place the artwork inside a 2752×1536 canvas that is mostly
 empty. They are trimmed to their alpha bounding box and exported to
