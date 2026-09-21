@@ -298,6 +298,101 @@
     }
   }
 
+  /* --- The lockup ---------------------------------------------------------
+     The mark above the wordmark, hovered as one thing. Gold washes across the
+     mark left to right while the letters turn beneath it, so the pair reads as
+     a single movement.
+
+     The mark is a masked box, not a tinted image: the supplied artwork is white
+     on transparent, so its alpha is the shape, and masking a coloured box with
+     it gives a colour that can actually animate.
+  ---------------------------------------------------------------------- */
+
+  .hm-lockup {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .hm-lockup__mark {
+    position: relative;
+    display: block;
+    /* The artwork is 256x117; without this the masked box has no height. */
+    aspect-ratio: 256 / 117;
+  }
+
+  .hm-lockup__mark::before,
+  .hm-lockup__mark::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    -webkit-mask: url("/brand/mark-white.webp") center / contain no-repeat;
+    mask: url("/brand/mark-white.webp") center / contain no-repeat;
+  }
+
+  .hm-lockup__mark::before {
+    background-color: var(--color-ink);
+  }
+
+  .hm-lockup__mark::after {
+    background-color: var(--color-gold);
+    /* Collapsed to the left edge at rest, so revealing it sweeps rightward. */
+    clip-path: inset(0 100% 0 0);
+    opacity: 0;
+    /* Leaving is a fade, not a reverse wipe — a wipe running right to left
+       would fight the letters, which settle back left to right. The clip only
+       resets once the fade has finished, so the gold does not vanish early. */
+    transition:
+      opacity 260ms linear,
+      clip-path 0ms linear 260ms;
+  }
+
+  .hm-lockup:hover .hm-lockup__mark::after {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+    transition:
+      clip-path 560ms var(--ease-out-hm) 60ms,
+      opacity 180ms linear 60ms;
+  }
+
+  /* Hovering the mark turns the letters too, so the lockup behaves as one
+     surface rather than two neighbours. */
+  .hm-lockup:hover .hm-wordmark__latin {
+    opacity: 0;
+    transform: scale(1.14);
+    filter: blur(3px);
+    transition-delay: calc(var(--i, 0) * 45ms);
+  }
+
+  .hm-lockup:hover .hm-wordmark__rune {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition-delay: calc(var(--i, 0) * 45ms);
+  }
+
+  @media (hover: none) {
+    .hm-lockup:hover .hm-lockup__mark::after {
+      opacity: 0;
+    }
+    .hm-lockup:hover .hm-wordmark__latin {
+      opacity: 1;
+      transform: none;
+      filter: none;
+    }
+    .hm-lockup:hover .hm-wordmark__rune {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hm-lockup__mark::after,
+    .hm-lockup:hover .hm-lockup__mark::after {
+      clip-path: none;
+      transition: opacity 90ms linear;
+    }
+  }
+
   .hm-eyebrow {
     font-family: var(--font-ritual);
     font-size: var(--text-2xs);

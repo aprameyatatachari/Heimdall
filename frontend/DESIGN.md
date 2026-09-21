@@ -241,6 +241,20 @@ about twelve per cent narrower than the Latin ones; matched tracking drifts the
 two alphabets apart letter by letter, and the runes would no longer sit under
 the letters they replace.
 
+**On the splash the mark joins in.** The lockup is one hover target: gold washes
+across the mark from left to right while the letters turn beneath it, so the two
+read as a single movement rather than two effects that fired together. Hovering
+the mark turns the letters, and hovering the letters washes the mark.
+
+The mark is drawn by masking its own artwork rather than by tinting the image —
+the supplied file is white on transparent, so its alpha is the shape, and
+masking a coloured box with it gives a colour that can actually animate. No
+filter chain over a bitmap reaches that colour cleanly.
+
+Gold arrives as a wipe and leaves as a fade. A wipe running back right to left
+would fight the letters, which settle to Latin left to right; the clip resets
+only once the fade has finished, so the gold never vanishes early.
+
 | Variant  | Use                                                                                                  |
 | -------- | ---------------------------------------------------------------------------------------------------- |
 | Wordmark | The default identity. Header, footer, auth, and the splash lockup.                                   |

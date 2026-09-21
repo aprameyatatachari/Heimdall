@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Logo } from "@/components/Logo";
-import { Wordmark } from "@/components/Wordmark";
+import { Lockup } from "@/components/Lockup";
 import { cx } from "@/lib/cx";
 
 import { useGateDissolve } from "./useGateDissolve";
@@ -266,14 +265,12 @@ export function SplashGate({ onEntered }: { onEntered: () => void }) {
         </div>
 
         <div className="flex flex-1 flex-col items-center justify-center text-center">
-          {/* The lockup, assembled rather than flattened: the mark stays
-              artwork and the wordmark becomes live type, so the runes are
-              something you uncover here too. */}
-          <Logo variant="mark" decorative className="h-14 md:h-20 lg:h-24" />
-          {/* Eight cells of 1.22em each: the mark is 9.8em wide whatever the size,
-              so the step down at the narrowest widths is what keeps it inside a
-              phone rather than overflowing it. */}
-          <Wordmark className="text-ink mt-8 text-2xl sm:text-3xl md:mt-10 md:text-5xl lg:text-6xl" />
+          {/* Assembled rather than flattened, so the mark can take the gold
+              as the letters turn. */}
+          <Lockup
+            markClassName="h-14 md:h-20 lg:h-24"
+            wordmarkClassName="text-ink mt-8 text-2xl sm:text-3xl md:mt-10 md:text-5xl lg:text-6xl"
+          />
           <p className="text-ink mt-6 text-xs tracking-[0.62em] uppercase md:text-sm">
             See further
           </p>
