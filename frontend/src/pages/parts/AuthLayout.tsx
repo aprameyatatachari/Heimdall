@@ -2,8 +2,7 @@ import { Link } from "react-router-dom";
 
 import { Backdrop } from "@/components/Backdrop";
 import { Disclaimer } from "@/components/Disclaimer";
-import { Star } from "@/components/Star";
-import { Wordmark } from "@/components/Wordmark";
+import { Logo } from "@/components/Logo";
 import { IMAGES } from "@/lib/images";
 
 /**
@@ -28,9 +27,8 @@ export function AuthLayout({
       <Backdrop image={IMAGES.heroCitadel} scrim="flat" position="object-[58%_center]" />
 
       <header className="relative z-10 mx-auto flex h-16 w-full max-w-[1440px] items-center px-4 md:px-8">
-        <Link to="/" className="flex items-center gap-3">
-          <Star className="text-gold size-4" />
-          <Wordmark className="text-ink text-xl" />
+        <Link to="/" className="flex items-center">
+          <Logo variant="wordmark" className="h-5" />
         </Link>
       </header>
 
@@ -40,7 +38,7 @@ export function AuthLayout({
       >
         <div className="hm-glass w-full max-w-md p-8 sm:p-10">
           <div className="mb-8 text-center">
-            <Star className="text-gold mx-auto mb-5 size-6" />
+            <Logo variant="mark" decorative className="mx-auto mb-5 h-8" />
             <h1 className="font-display text-ink text-[length:var(--text-2xl)] leading-tight font-light">
               {title}
             </h1>

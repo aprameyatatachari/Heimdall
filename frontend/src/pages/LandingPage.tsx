@@ -2,8 +2,7 @@ import { Link } from "react-router-dom";
 
 import { Backdrop } from "@/components/Backdrop";
 import { Disclaimer } from "@/components/Disclaimer";
-import { Star } from "@/components/Star";
-import { Wordmark } from "@/components/Wordmark";
+import { Logo } from "@/components/Logo";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useReveal } from "@/hooks/useReveal";
 import { IMAGES } from "@/lib/images";
@@ -137,9 +136,8 @@ export function LandingPage() {
       <footer className="border-line border-t">
         <div className="mx-auto max-w-[1440px] px-4 py-12 md:px-8 lg:px-16">
           <div className="flex flex-wrap items-center justify-between gap-6">
-            <Link to="/" className="flex items-center gap-3">
-              <Star className="text-gold size-4" />
-              <Wordmark className="text-ink text-lg" />
+            <Link to="/" className="flex items-center">
+              <Logo variant="wordmark" className="h-5" />
             </Link>
             <nav aria-label="Footer" className="text-ink-muted flex gap-6 text-sm">
               <Link to="/methodology" className="hover:text-gold">

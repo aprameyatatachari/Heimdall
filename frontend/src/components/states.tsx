@@ -5,7 +5,7 @@ import { cx } from "@/lib/cx";
 
 import { Button } from "./Button";
 import { Spinner } from "./Spinner";
-import { Star } from "./Star";
+import { Logo } from "./Logo";
 
 /** A pending region. Announced, so a screen reader knows work is happening. */
 export function Loading({
@@ -46,7 +46,7 @@ export function Empty({
 }) {
   return (
     <div className={cx("flex flex-col items-center px-6 py-16 text-center", className)}>
-      <Star className="text-ink-faint mb-5 size-6" />
+      <Logo variant="mark" decorative className="mb-5 h-7 opacity-30" />
       <h3 className="text-ink text-lg font-medium">{title}</h3>
       <p className="text-ink-muted mt-2 max-w-md text-sm leading-relaxed">{body}</p>
       {action && <div className="mt-6">{action}</div>}

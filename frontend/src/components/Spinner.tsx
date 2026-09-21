@@ -1,8 +1,12 @@
 import { cx } from "@/lib/cx";
 
 /**
- * The loading indicator is the brand star, turning slowly.
- * Decorative: the surrounding element carries the accessible status text.
+ * A pending indicator.
+ *
+ * Deliberately a plain ring rather than the logo: a brand mark spinning is the
+ * kind of motion this product does not do, and the mark is wide rather than
+ * square so it wobbles when rotated. Decorative — the surrounding element
+ * carries the accessible status text.
  */
 export function Spinner({ className }: { className?: string }) {
   return (
@@ -11,11 +15,18 @@ export function Spinner({ className }: { className?: string }) {
       aria-hidden="true"
       focusable="false"
       className={cx("animate-spin", className)}
-      style={{ animationDuration: "1.6s" }}
+      style={{ animationDuration: "1.1s" }}
     >
-      <path
-        d="M12 0 L13.2 10.8 L24 12 L13.2 13.2 L12 24 L10.8 13.2 L0 12 L10.8 10.8 Z"
-        fill="currentColor"
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeDasharray="42 14"
+        opacity="0.9"
       />
     </svg>
   );

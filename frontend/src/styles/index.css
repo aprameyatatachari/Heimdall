@@ -51,7 +51,6 @@
   --color-sev-critical: #c4675c;
 
   /* --- Typefaces --------------------------------------------------------- */
-  --font-rune: "Elder Futhark", "Cormorant Garamond", Georgia, serif;
   --font-display: "Cormorant Garamond", "EB Garamond", Georgia, serif;
   --font-ritual: "Skranji", "Cormorant Garamond", Georgia, serif;
   --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -181,13 +180,6 @@
     font-feature-settings:
       "tnum" 1,
       "zero" 1;
-  }
-
-  .hm-wordmark {
-    font-family: var(--font-rune);
-    letter-spacing: 0.18em;
-    font-weight: 400;
-    font-style: normal;
   }
 
   .hm-scrim-bottom {

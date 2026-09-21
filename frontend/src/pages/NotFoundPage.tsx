@@ -1,13 +1,13 @@
 import { Link } from "react-router-dom";
 
-import { Star } from "@/components/Star";
+import { Logo } from "@/components/Logo";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export function NotFoundPage() {
   useDocumentTitle("Not found");
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center px-4 text-center">
-      <Star className="text-ink-faint mb-6 size-8" />
+      <Logo variant="mark" decorative className="mb-6 h-9 opacity-35" />
       <p className="hm-eyebrow mb-4">404</p>
       <h1 className="font-display text-ink text-[length:var(--text-2xl)] font-light">
         The path stops here

@@ -1,7 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 import { Button } from "@/components/Button";
-import { Star } from "@/components/Star";
+import { Logo } from "@/components/Logo";
 
 interface State {
   error: Error | null;
@@ -32,7 +32,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
 
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center px-4 text-center">
-        <Star className="text-ink-faint mb-6 size-8" />
+        <Logo variant="mark" decorative className="mb-6 h-9 opacity-35" />
         <h1 className="font-display text-ink text-[length:var(--text-2xl)] font-light">
           Something went wrong
         </h1>

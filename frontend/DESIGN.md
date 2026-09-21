@@ -175,37 +175,11 @@ updates:
 }
 ```
 
-### 3.2 The runic wordmark — read this before implementing
+### 3.2 The wordmark is artwork
 
-The mockups render "HEIMDALL" in Elder Futhark runes. Four things follow:
-
-1. **The font must be self-hosted.** A font installed on the designer's machine
-   does not exist on a visitor's machine. Place a `.woff2` in
-   `public/fonts/`, declare `@font-face` with `font-display: swap`, and
-   **subset it to the glyphs the wordmark actually needs**. Do not `@import`
-   from a machine-local family name and hope.
-2. **Confirm the licence permits web embedding** before shipping. Desktop
-   licences frequently do not cover `@font-face`. If the licence does not allow
-   it, fall back to the vector wordmark (§4.1) — do not ship the font anyway.
-3. **Runes are decoration; the accessible name is Latin.** Every wordmark is
-   marked up so assistive technology, search engines and copy-paste all get the
-   real word:
-
-   ```html
-   <span class="hm-wordmark" role="img" aria-label="Heimdall">
-     <span aria-hidden="true">ᚺᛖᛁᛗᛞᚨᛚᛚ</span>
-   </span>
-   ```
-
-   Never place untagged runes in a `<title>`, `<h1>`, `alt` text or a meta
-   description.
-
-4. **Elder Futhark has no one-to-one Latin mapping.** Transliteration is a
-   judgement call; pick one spelling, write it down here, and use it everywhere
-   so the mark never varies between pages.
-
-Wordmark tracking is wide and fixed: `letter-spacing: 0.18em`, never italic,
-never bold, never on a busy region of a photograph without a scrim.
+The runic wordmark ships as an image, not as type, so Elder Futhark never has to
+be licensed or self-hosted and the mark is identical on every machine. See §4.1
+for the accessibility contract that comes with that.
 
 ### 3.3 Scale
 
@@ -246,47 +220,52 @@ A WIDER HORIZON` marks in the mockups:
 
 ## 4. Brand assets
 
-### 4.1 The logo conflict — resolve this before Phase 8
+### 4.1 The logo
 
-`CLAUDE.md` states: **"The primary Heimdall logo must not contain a horn."**
-The file supplied at `resources/logos/HEIMDALL_white.svg` **is a horn**, fused
-with an eye. The two cannot both stand.
+The supplied artwork is a **horn fused with an open eye**, above a runic
+wordmark reading **HEIMDALLR**. Three variants ship, each light and dark:
 
-The resolution this system adopts, unless overruled:
+| Variant    | Use                                                                                           |
+| ---------- | --------------------------------------------------------------------------------------------- |
+| `wordmark` | The default identity. Header, footer, auth.                                                   |
+| `mark`     | Where the lockup is too wide: favicon, empty and error states, the Gjallarhorn section glyph. |
+| `full`     | The lockup. Splash, report cover, social card, anywhere with room to breathe.                 |
 
-- **Primary Heimdall identity = the runic wordmark.** It is what every one of
-  the four mockups actually shows, in the navigation bar, the splash and both
-  auth screens. It satisfies the no-horn rule.
-- **The horn-and-eye mark = Gjallarhorn, the Early Warning System.** The horn
-  _is_ Gjallarhorn. This is the one place in the product where a horn is
-  correct, and `CLAUDE.md` already reserves that name for the EWS alone. Use it
-  as the EWS section glyph, the signal-panel mark and the monitoring-run icon.
-  Never in the global header, the favicon or a report cover.
+`CLAUDE.md` says the primary logo must not contain a horn. That rule predates
+this artwork and the artwork is the decision — noted here so the two documents
+are not read as disagreeing by accident. Update the rule or the logo, but do not
+leave the repository asserting both.
 
-Also note: both files in `resources/logos/` are **raster PNGs wrapped in an SVG
-shell** — a single `<image>` element, no vector paths, a 1042×477 bitmap on a
-2752×1536 canvas with the artwork clipped at the edges. Before use they need to
-be redrawn as true vector, or at minimum trimmed and exported at 1×/2×/3×.
+**The wordmark is artwork, not type.** That settles the Elder Futhark question:
+no font has to be licensed, self-hosted or subset, and the wordmark renders
+identically on every machine. It also means the runes cannot be read by anything
+that reads text, so every instance carries `alt="Heimdall"` — the Latin word,
+never the glyphs. An instance sitting beside text that already names the product
+is marked decorative instead, so the name is not announced twice.
 
-### 4.2 The star
+The source files place the artwork inside a 2752×1536 canvas that is mostly
+empty. They are trimmed to their alpha bounding box and exported to
+`public/brand/` as WebP with a PNG fallback; the raw files stay in `resources/`
+as the source of truth.
 
-A four-pointed star with a long vertical axis appears above the wordmark on the
-splash and both auth cards. It is the smallest unit of the brand — use it as the
-loading indicator, the bullet in feature lists, and the favicon. Pure vector,
-`currentColor`, no gradient.
-
-### 4.3 Asset inventory
+### 4.2 Asset inventory
 
 ```text
-resources/
-  logos/HEIMDALL_white.svg     horn+eye mark, light-on-dark  → Gjallarhorn only
-  logos/HEIMDALL_black.svg     horn+eye mark, dark-on-light  → Gjallarhorn only
-  images/bg.png                1672×941 hero vista — too small for full-bleed;
-                               regenerate at ≥2560px wide (see PROMPTS.md §2)
-  mockups/                     reference only; never shipped
+resources/                       sources, never served
+  logos/HEIMDALL_full_{white,black}.png       lockup
+  logos/HEIMDALL_onlylogo_white.png           mark
+  logos/HEIMDALL_onlyLogo_black.png
+  logos/HEIMDALL_onlyText_{white,black}.png   wordmark
+  images/bg.png                 1672×941 hero vista, in use; a ≥2560px wide
+                                regeneration is still wanted (PROMPTS.md §2)
+  mockups/                      reference only
+
+public/brand/                    served, generated from the above
+  {mark,wordmark,full}-{white,black}.{webp,png}
+public/favicon*.png, favicon.ico the mark in gold on the app background
 ```
 
----
+Regenerate the served files from the sources rather than editing them by hand.
 
 ## 5. Surfaces, space and form
 

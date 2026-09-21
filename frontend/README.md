@@ -82,10 +82,6 @@ Phases 10 and 11. See `AGENTS.md` section 9.
 
 ## Notes for the next phase
 
-- **The Elder Futhark wordmark is not yet self-hosted.** `--font-rune` currently
-  falls back to the display serif, and the runes render from whatever the
-  visitor's system provides. A licensed, subset `.woff2` in `public/fonts/` is
-  needed before this is correct. See `DESIGN.md` section 3.2.
 - **No generated imagery is in place.** Heroes and backdrops render as gradients.
   `PROMPTS.md` holds the prompt for each one.
 - **Motion is CSS and IntersectionObserver only.** `DESIGN.md` section 7 specifies
