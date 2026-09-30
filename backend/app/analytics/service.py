@@ -113,6 +113,94 @@ class _Metric:
     unavailable_reason: str | None = None
 
 
+# Series carried in metric metadata are rounded before storage. A tenth of a
+# cent and the tenth decimal place of a ratio are below anything a chart can
+# draw or a reader can check, and a thousand un-rounded floats per run is a
+# large amount of JSON to store and ship for no gain.
+MONEY_PLACES = 2
+RATIO_PLACES = 6
+INDEX_PLACES = 4
+
+
+def _value_points(
+    *,
+    base_date: date,
+    dates: list[date],
+    path: calc.FloatArray,
+    drawdowns: calc.FloatArray,
+) -> list[dict[str, Any]]:
+    """The value path and its drawdowns, one point per date.
+
+    `path` carries one more point than `dates`: the value the path starts from,
+    which belongs to the last price date before the first return. That date is
+    `base_date`, so the first point is dated rather than dropped or guessed at.
+    """
+    days = [base_date, *dates]
+    return [
+        {
+            "date": day.isoformat(),
+            "value": round(float(path[index]), MONEY_PLACES),
+            "drawdown": round(float(drawdowns[index]), RATIO_PLACES),
+        }
+        for index, day in enumerate(days)
+    ]
+
+
+def _benchmark_series_metric(
+    *,
+    portfolio_series: calc.FloatArray,
+    benchmark_series: calc.FloatArray,
+    aligned: calc.AlignedReturns,
+    shared: MetricMetadata,
+) -> _Metric:
+    """The portfolio and its benchmark as one indexed growth series.
+
+    Both start at 100 on the same date, which is the only honest way to draw two
+    series whose levels are unrelated: a portfolio worth 4,000 and an index at
+    4,700 share no axis, and plotting them together invites a comparison of
+    levels that means nothing. Indexing compares what they did.
+    """
+    metadata: MetricMetadata = {
+        **shared,
+        "indexed_to": 100,
+        "annualized": False,
+        "assumption": (
+            "Both series are indexed to 100 on the first common date, so the chart "
+            "compares growth rather than levels. " + FIXED_WEIGHT_NOTE
+        ),
+    }
+    try:
+        portfolio_path = calc.value_history(portfolio_series, starting_value=100.0)
+        benchmark_path = calc.value_history(benchmark_series, starting_value=100.0)
+        total_return = calc.cumulative_return(benchmark_series)
+    except calc.CalculationError as exc:
+        return _Metric(
+            metric="benchmark_comparison_series",
+            unit=MetricUnit.RATIO,
+            metadata=metadata,
+            unavailable_reason=str(exc),
+        )
+
+    days = [aligned.base_date, *aligned.dates]
+    return _Metric(
+        metric="benchmark_comparison_series",
+        unit=MetricUnit.RATIO,
+        value=total_return,
+        metadata={
+            **metadata,
+            "definition": "The benchmark's total return over the window.",
+            "points": [
+                {
+                    "date": day.isoformat(),
+                    "portfolio": round(float(portfolio_path[index]), INDEX_PLACES),
+                    "benchmark": round(float(benchmark_path[index]), INDEX_PLACES),
+                }
+                for index, day in enumerate(days)
+            ],
+        },
+    )
+
+
 class AnalyticsService:
     """Runs and stores portfolio analyses."""
 
@@ -529,9 +617,12 @@ class AnalyticsService:
             },
         )
 
-        # Drawdown works on the value path implied by the return series.
+        # Drawdown and the value chart both work on the value path implied by the
+        # return series. The path is anchored so that it *ends* at the portfolio's
+        # current value, which is the only anchoring under which the chart's last
+        # point and the valuation beside it are the same number.
         try:
-            path = calc.value_history(portfolio_series, starting_value=total_value)
+            path = calc.value_history_ending_at(portfolio_series, ending_value=total_value)
             worst = calc.max_drawdown(path)
             dates = aligned.dates
             metrics.append(
@@ -555,27 +646,116 @@ class AnalyticsService:
                             else parameters.start.isoformat()
                         ),
                         "assumption": FIXED_WEIGHT_NOTE,
+                        "value_path_anchor": "end",
                     },
                 )
             )
+            drawdowns = calc.drawdown_series(path)
             metrics.append(
                 _Metric(
                     metric="current_drawdown",
                     unit=MetricUnit.RATIO,
-                    value=float(calc.drawdown_series(path)[-1]),
+                    value=float(drawdowns[-1]),
                     metadata={**window, "assumption": FIXED_WEIGHT_NOTE},
                 )
             )
+            # The value path and its drawdowns, as a chartable series.
+            #
+            # These are the same numbers the drawdown metrics above are drawn
+            # from, returned once so a client plots the analysis it is reading
+            # rather than reconstructing the portfolio itself and arriving at
+            # figures that disagree with the run and with the report.
+            metrics.append(
+                _Metric(
+                    metric="portfolio_value_series",
+                    unit=MetricUnit.CURRENCY,
+                    value=float(path[-1]),
+                    metadata={
+                        **window,
+                        "currency": snapshot.base_currency,
+                        "starting_value": float(path[0]),
+                        "annualized": False,
+                        "value_path_anchor": "end",
+                        "assumption": (
+                            "The path ends at the portfolio's current value and works "
+                            "backwards through each period's reconstructed return. "
+                            + FIXED_WEIGHT_NOTE
+                        ),
+                        "points": _value_points(
+                            base_date=aligned.base_date,
+                            dates=dates,
+                            path=path,
+                            drawdowns=drawdowns,
+                        ),
+                    },
+                )
+            )
         except calc.CalculationError as exc:
-            for metric in ("max_drawdown", "current_drawdown"):
+            for metric, unit in (
+                ("max_drawdown", MetricUnit.RATIO),
+                ("current_drawdown", MetricUnit.RATIO),
+                ("portfolio_value_series", MetricUnit.CURRENCY),
+            ):
                 metrics.append(
                     _Metric(
                         metric=metric,
-                        unit=MetricUnit.RATIO,
+                        unit=unit,
                         metadata=window,
                         unavailable_reason=str(exc),
                     )
                 )
+
+        # Rolling volatility, so a chart can show whether risk is rising rather
+        # than only what it averaged over the window.
+        rolling_window = parameters.recent_volatility_window
+        rolling_metadata: MetricMetadata = {
+            **window,
+            "annualized": True,
+            "periods_per_year": periods,
+            "window": rolling_window,
+            "window_unit": str(parameters.frequency),
+            "assumption": (
+                f"Each point is the volatility of the {rolling_window} "
+                f"{parameters.frequency} returns ending on that date, annualized. "
+                "Partial windows are not shown."
+            ),
+        }
+        try:
+            rolling = calc.rolling_volatility(
+                portfolio_series,
+                window=rolling_window,
+                periods_per_year=periods,
+            )
+            # One point per complete window: the first describes the window
+            # ending at `dates[rolling_window - 1]`.
+            rolling_dates = aligned.dates[rolling_window - 1 :]
+            metrics.append(
+                _Metric(
+                    metric="rolling_volatility",
+                    unit=MetricUnit.RATIO,
+                    value=float(rolling[-1]),
+                    metadata={
+                        **rolling_metadata,
+                        "as_of": rolling_dates[-1].isoformat() if rolling_dates else None,
+                        "points": [
+                            {
+                                "date": day.isoformat(),
+                                "value": round(float(rolling[index]), RATIO_PLACES),
+                            }
+                            for index, day in enumerate(rolling_dates)
+                        ],
+                    },
+                )
+            )
+        except calc.CalculationError as exc:
+            metrics.append(
+                _Metric(
+                    metric="rolling_volatility",
+                    unit=MetricUnit.RATIO,
+                    metadata=rolling_metadata,
+                    unavailable_reason=str(exc),
+                )
+            )
 
         var_metadata: MetricMetadata = {
             "confidence": parameters.confidence,
@@ -866,7 +1046,14 @@ class AnalyticsService:
             ]
 
         shared = {**window, "observations": aligned.observation_count}
+        series_metric = _benchmark_series_metric(
+            portfolio_series=portfolio_series,
+            benchmark_series=benchmark_series,
+            aligned=aligned,
+            shared=shared,
+        )
         return [
+            series_metric,
             _Metric("benchmark_beta", MetricUnit.RATIO, comparison.beta, shared),
             _Metric(
                 "benchmark_alpha_annualized",

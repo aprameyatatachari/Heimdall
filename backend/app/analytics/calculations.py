@@ -212,6 +212,32 @@ def value_history(returns: object, *, starting_value: float) -> FloatArray:
     return path
 
 
+def value_history_ending_at(returns: object, *, ending_value: float) -> FloatArray:
+    """Compound a return series into a value path that **ends** at `ending_value`.
+
+    `value_history` anchors the path at its start, which is the right shape for a
+    drawdown calculation but the wrong one to show as "portfolio value over
+    time": anchoring the start at today's value makes the path finish somewhere
+    the portfolio is not, and the chart then disagrees with the valuation beside
+    it. Anchoring the end instead means the last point is the portfolio's actual
+    value and the earlier points are what the fixed-weight reconstruction implies
+    it was worth.
+
+    Drawdown is scale-invariant, so which end is anchored does not change any
+    drawdown figure — only the currency amounts.
+    """
+    series = as_array(returns)
+    if ending_value <= 0:
+        raise DegenerateDataError("The ending value must be positive.")
+
+    growth = float(np.prod(1.0 + series))
+    if growth <= 0:
+        raise DegenerateDataError(
+            "The return series implies a total loss, so no value path can be anchored to it."
+        )
+    return value_history(series, starting_value=ending_value / growth)
+
+
 # --- Risk ---------------------------------------------------------------------
 
 
@@ -234,6 +260,43 @@ def volatility(
 
     deviation = float(np.std(series, ddof=1))
     return deviation * float(np.sqrt(periods_per_year)) if annualize else deviation
+
+
+def rolling_volatility(
+    returns: object,
+    *,
+    window: int,
+    annualize: bool = True,
+    periods_per_year: int = TRADING_DAYS_PER_YEAR,
+) -> FloatArray:
+    """Volatility of each consecutive `window` of returns.
+
+        rolling(t) = stdev(returns[t - window + 1 : t + 1]) * sqrt(periods_per_year)
+
+    Returns one value per complete window, so the result has
+    `len(returns) - window + 1` elements and the first one describes the window
+    ending at index `window - 1`. Windows are never padded and never back-filled:
+    a partial window is not a volatility, and showing one as though it were would
+    understate the early part of every chart.
+
+    Uses the sample standard deviation, like `volatility`, so a single window and
+    the whole series are measured the same way.
+    """
+    series = as_array(returns)
+    if window < 2:
+        raise DegenerateDataError("A volatility window needs at least two observations.")
+    if series.size < window:
+        raise InsufficientDataError(
+            required=window, available=series.size, metric="Rolling volatility"
+        )
+
+    # One strided view per window, so the standard deviations are computed in a
+    # single vectorized pass rather than a Python loop over slices.
+    windows = np.lib.stride_tricks.sliding_window_view(series, window)
+    deviations = np.std(windows, axis=1, ddof=1).astype(np.float64)
+    if annualize:
+        deviations = deviations * float(np.sqrt(periods_per_year))
+    return deviations
 
 
 def deannualize_rate(annual_rate: float, *, periods_per_year: int) -> float:
@@ -658,6 +721,10 @@ class AlignedReturns:
 
     symbols: list[str]
     dates: list[date]
+    # The date of the first common price, from which the first return is measured.
+    # It is not a return date, so it is kept out of `dates`; a value path needs it
+    # because the path starts one point before the first return.
+    base_date: date
     # Shaped (periods, assets).
     matrix: FloatArray
     # Dates present for some assets but not all, and therefore excluded.
@@ -708,6 +775,7 @@ def align_price_series(
     return AlignedReturns(
         symbols=symbols,
         dates=common_dates[1:],
+        base_date=common_dates[0],
         matrix=matrix,
         dropped_dates=sorted(union - common),
     )

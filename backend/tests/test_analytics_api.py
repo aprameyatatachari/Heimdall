@@ -271,6 +271,112 @@ async def test_max_drawdown_is_never_positive(api):
     assert metrics["max_drawdown"]["metadata"]["trough_date"]
 
 
+async def test_the_value_series_is_returned_with_a_date_for_every_point(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("SPY", "10", "300"), ("AAPL", "20", "50")])
+
+    payload = (await _run(api, headers, portfolio_id)).json()
+    metrics = _metrics(payload)
+    series = metrics["portfolio_value_series"]
+    points = series["metadata"]["points"]
+    observations = int(Decimal(metrics["analysis_observations"]["value"]))
+
+    # One point per return, plus the value the path starts from.
+    assert len(points) == observations + 1
+    assert all(point["date"] for point in points)
+    # The series is a reconstruction, so it says so on the metric itself.
+    assert "weights" in series["metadata"]["assumption"]
+
+
+async def test_the_value_series_ends_at_the_portfolio_value_shown_beside_it(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("SPY", "10", "300"), ("AAPL", "20", "50")])
+
+    metrics = _metrics((await _run(api, headers, portfolio_id)).json())
+    series = metrics["portfolio_value_series"]
+    points = series["metadata"]["points"]
+    portfolio_value = float(Decimal(metrics["portfolio_value"]["value"]))
+
+    # The chart's last point and the valuation on the same screen have to be the
+    # same number; anchoring the path at its start left them disagreeing.
+    assert points[-1]["value"] == pytest.approx(portfolio_value, abs=0.01)
+    assert float(Decimal(series["value"])) == pytest.approx(portfolio_value, abs=0.01)
+    assert points[0]["value"] == pytest.approx(series["metadata"]["starting_value"], abs=0.01)
+    assert series["metadata"]["value_path_anchor"] == "end"
+
+
+async def test_the_series_drawdowns_agree_with_the_drawdown_metrics(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("SPY", "10", "300"), ("AAPL", "20", "50")])
+
+    metrics = _metrics((await _run(api, headers, portfolio_id)).json())
+    points = metrics["portfolio_value_series"]["metadata"]["points"]
+    drawdowns = [point["drawdown"] for point in points]
+
+    # A chart drawn from the series and the tiles beside it must not disagree:
+    # both come from one value path, and this is what proves it.
+    assert min(drawdowns) == pytest.approx(
+        float(Decimal(metrics["max_drawdown"]["value"])), abs=1e-6
+    )
+    assert drawdowns[-1] == pytest.approx(
+        float(Decimal(metrics["current_drawdown"]["value"])), abs=1e-6
+    )
+    assert max(drawdowns) <= 0
+
+
+async def test_rolling_volatility_shows_only_complete_windows(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("SPY", "10", "300"), ("AAPL", "20", "50")])
+
+    payload = (await _run(api, headers, portfolio_id)).json()
+    metrics = _metrics(payload)
+    rolling = metrics["rolling_volatility"]
+    window = rolling["metadata"]["window"]
+    observations = int(Decimal(metrics["analysis_observations"]["value"]))
+
+    assert rolling["metadata"]["annualized"] is True
+    assert len(rolling["metadata"]["points"]) == observations - window + 1
+    # The tile shows the newest window, which is the last point of the chart.
+    assert float(Decimal(rolling["value"])) == pytest.approx(
+        rolling["metadata"]["points"][-1]["value"], abs=1e-6
+    )
+
+
+async def test_a_window_too_short_for_rolling_volatility_says_so(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("SPY", "10", "300")])
+
+    payload = (await _run(api, headers, portfolio_id, start="2023-12-01", end="2023-12-15")).json()
+    rolling = _metrics(payload)["rolling_volatility"]
+
+    assert rolling["value"] is None
+    assert rolling["unavailable_reason"]
+    assert "points" not in rolling["metadata"]
+
+
+async def test_the_benchmark_series_indexes_both_lines_to_the_same_start(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("AAPL", "20", "50")], benchmark="SPY")
+
+    metrics = _metrics((await _run(api, headers, portfolio_id)).json())
+    series = metrics["benchmark_comparison_series"]
+    points = series["metadata"]["points"]
+
+    assert series["metadata"]["indexed_to"] == 100
+    assert points[0]["portfolio"] == pytest.approx(100.0)
+    assert points[0]["benchmark"] == pytest.approx(100.0)
+    assert len(points) > 2
+
+
+async def test_a_portfolio_without_a_benchmark_has_no_comparison_series(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("AAPL", "20", "50")])
+
+    metrics = _metrics((await _run(api, headers, portfolio_id)).json())
+
+    assert "benchmark_comparison_series" not in metrics
+
+
 async def test_risk_contributions_reconcile_with_total_volatility(api):
     headers = await _signed_in_user(api)
     portfolio_id = await _portfolio(

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import { RequireAuth } from "@/auth/RequireAuth";
 import { AppHomePage } from "@/pages/AppHomePage";
+import { PortfolioAnalyticsTab } from "@/pages/PortfolioAnalyticsTab";
 import { PortfolioHoldingsTab } from "@/pages/PortfolioHoldingsTab";
 import { PortfolioLayout } from "@/pages/PortfolioLayout";
 import { PortfolioListPage } from "@/pages/PortfolioListPage";
@@ -37,8 +38,9 @@ export function AppRoutes() {
           <Route path="portfolios/:portfolioId" element={<PortfolioLayout />}>
             <Route index element={<PortfolioOverviewTab />} />
             <Route path="holdings" element={<PortfolioHoldingsTab />} />
+            <Route path="analytics" element={<PortfolioAnalyticsTab />} />
           </Route>
-          {/* Phases 10 and 11 mount their screens here. */}
+          {/* Phase 11 mounts stress testing, signals and reports here. */}
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Route>
       </Route>

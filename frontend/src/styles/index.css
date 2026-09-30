@@ -58,6 +58,16 @@
   --color-horizon-2: #c9b7e8;
   --color-horizon-3: #f0c9a8;
 
+  /* --- Chart series. Series 1 is the portfolio, always. DESIGN.md 2.3. --- */
+  --color-series-1: #fdd89d;
+  --color-series-2: #8fb4d9;
+  --color-series-3: #a9c4a0;
+  --color-series-4: #c9b7e8;
+  --color-series-5: #d9a38b;
+  --color-series-6: #7fa5a8;
+  --color-series-7: #b9a7c4;
+  --color-series-8: #9aa3ab;
+
   /* --- Semantics: dusty, never neon -------------------------------------- */
   --color-positive: #7fa88a;
   --color-positive-dim: #2a3a31;

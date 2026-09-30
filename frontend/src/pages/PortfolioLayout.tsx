@@ -19,6 +19,7 @@ import { RefreshMarketDataButton } from "./parts/RefreshMarketDataButton";
 const TABS = [
   { to: ".", label: "Overview", end: true },
   { to: "holdings", label: "Holdings", end: false },
+  { to: "analytics", label: "Analytics", end: false },
 ];
 
 function SummaryTile({

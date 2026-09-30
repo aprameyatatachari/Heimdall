@@ -62,3 +62,27 @@ if (typeof window.IntersectionObserver === "undefined") {
 // fallback path deterministic instead of incidental.
 HTMLCanvasElement.prototype.getContext = (() =>
   null) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+
+/**
+ * Pin the default locale.
+ *
+ * The application deliberately formats in the reader's own locale, which means
+ * the dates and separators a component renders depend on the machine running
+ * the test. Pinning the default here keeps assertions about rendered text
+ * hermetic while leaving the components locale-agnostic. A test that cares
+ * about a specific locale still passes one explicitly.
+ */
+const pinnedLocale = "en-US";
+
+function pinLocale<
+  T extends { new (locales?: Intl.LocalesArgument, options?: object): object },
+>(original: T): T {
+  function Pinned(locales?: Intl.LocalesArgument, options?: object) {
+    return new original(locales ?? pinnedLocale, options);
+  }
+  Pinned.prototype = original.prototype;
+  return Object.assign(Pinned, original) as unknown as T;
+}
+
+Intl.DateTimeFormat = pinLocale(Intl.DateTimeFormat);
+Intl.NumberFormat = pinLocale(Intl.NumberFormat);

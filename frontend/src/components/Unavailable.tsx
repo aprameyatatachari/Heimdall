@@ -12,8 +12,11 @@ export function Unavailable({ reason, className }: { reason?: string; className?
   return (
     <span className={cx("text-ink-faint inline-flex items-baseline gap-1.5", className)}>
       <span aria-hidden="true">{UNAVAILABLE}</span>
+      {/* The word comes before the reason and the reason is said once: with the
+          reason in both layers a screen reader read it twice, and with the word
+          only in the second layer it arrived after the explanation. */}
+      <span className="sr-only">Unavailable: </span>
       <span className="text-xs">{reason ?? "unavailable"}</span>
-      <span className="sr-only">Unavailable{reason ? `: ${reason}` : ""}</span>
     </span>
   );
 }

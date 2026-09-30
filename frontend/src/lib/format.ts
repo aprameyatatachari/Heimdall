@@ -94,6 +94,48 @@ export function formatDate(
   }).format(date);
 }
 
+/**
+ * A money amount for a chart axis or readout.
+ *
+ * Takes a `number`, unlike `formatMoney`, because a chart's own values are
+ * numbers: a series arrives from the API as JSON numbers, and an axis tick is a
+ * position computed in pixels rather than a figure quoted from the data. Nothing
+ * that reports a stored amount should use this — those keep their decimal
+ * strings and go through `formatMoney`. See AGENTS.md section 7.1.
+ */
+export function formatMoneyAxis(
+  value: number,
+  currency: string,
+  options: FormatOptions = {},
+): string {
+  if (!Number.isFinite(value)) return UNAVAILABLE;
+  try {
+    return new Intl.NumberFormat(options.locale, {
+      style: "currency",
+      currency,
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(value);
+  } catch {
+    return UNAVAILABLE;
+  }
+}
+
+/** An ISO date as a short axis label: "Jan 22". */
+export function formatShortDate(
+  value: string | null | undefined,
+  options: FormatOptions = {},
+): string {
+  if (!value) return UNAVAILABLE;
+  const date = new Date(`${value.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return UNAVAILABLE;
+  return new Intl.DateTimeFormat(options.locale, {
+    month: "short",
+    year: "2-digit",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 /** An ISO timestamp as a readable date and time. */
 export function formatDateTime(
   value: string | null | undefined,

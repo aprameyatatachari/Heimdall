@@ -521,6 +521,17 @@ criteria, and it is also how a user checks a figure.
 Gaps in data are **gaps** — the line breaks. Never interpolate across missing
 observations, and never drop a missing point to zero.
 
+A line chart carries a **readout** above the plot rather than a floating tooltip:
+it holds the latest point until the pointer moves, and follows the cursor after
+that. A tooltip has to be positioned, clipped, dismissed and made reachable, and
+each of those is a way for it to fail; a fixed readout also cannot cover the line
+it describes.
+
+Charts size their own coordinate space to the element's width, so one unit is one
+pixel at every width. A fixed viewBox scaled to fit shrinks the axis labels with
+it — at phone width an 11-unit label lands around five pixels, which is a
+decoration rather than a label.
+
 ### 6.7 Disclaimer surfaces
 
 The standard disclaimer appears in the footer of every page, on every generated

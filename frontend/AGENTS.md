@@ -273,16 +273,33 @@ value_at_risk_parametric   expected_shortfall        benchmark_beta
 benchmark_correlation      benchmark_annualized_return
 benchmark_alpha_annualized tracking_error            information_ratio
 average_pairwise_correlation  largest_position_weight  largest_sector_weight
-risk_contribution          analysis_observations
+risk_contribution          analysis_observations      rolling_volatility
+portfolio_value_series     benchmark_comparison_series
 ```
+
+The last three carry a **series** in their metadata rather than only a figure —
+`portfolio_value_series` holds the value path and its drawdowns,
+`rolling_volatility` one point per complete window, and
+`benchmark_comparison_series` the portfolio and the benchmark indexed to 100.
+Charts read those; nothing in the client recomputes a portfolio, because a chart
+that disagreed with the tile beside it would be worse than no chart at all.
 
 There is **no Sortino ratio** and no bare "alpha" — the backend computes
 `benchmark_alpha_annualized`. Label it as such.
 
-Charts: portfolio value over time, portfolio versus benchmark, drawdown,
-allocation by asset and sector, correlation heatmap, risk contribution by
-holding. Each with title, labelled axes, units, legend and a **View as table**
-toggle.
+Charts: portfolio value over time, portfolio versus benchmark, drawdown, rolling
+volatility, allocation by asset and sector, correlation heatmap, risk
+contribution by holding. Each with title, labelled axes, units, legend and a
+**View as table** toggle.
+
+Allocation by holding is the one chart drawn from the portfolio summary rather
+than from the run, because it is a present-tense fact; it is captioned as current
+and dated. It shows the same weights the run applies, and an unpriced holding
+appears in it with its reason rather than being dropped.
+
+The value path is anchored so its **last** point is the portfolio's current
+value. A chart whose final point disagreed with the valuation in the header would
+undermine both.
 
 Run status handling:
 

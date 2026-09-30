@@ -181,6 +181,73 @@ def test_volatility_needs_enough_observations():
         calc.volatility([0.01, 0.02])
 
 
+def test_a_value_path_can_be_anchored_at_its_end():
+    returns = [0.1, -0.2, 0.05]
+
+    path = calc.value_history_ending_at(returns, ending_value=1000.0)
+
+    assert path[-1] == pytest.approx(1000.0, rel=1e-12)
+    # Four points for three returns: the start, then one per period.
+    assert path.size == 4
+
+
+def test_anchoring_either_end_gives_the_same_drawdowns():
+    rng = np.random.default_rng(11)
+    returns = rng.normal(0.0003, 0.012, 120).tolist()
+
+    from_start = calc.drawdown_series(calc.value_history(returns, starting_value=5000.0))
+    from_end = calc.drawdown_series(calc.value_history_ending_at(returns, ending_value=5000.0))
+
+    # Drawdown is a ratio to the running peak, so it cannot depend on the scale
+    # of the path. This is what makes the anchoring safe to change.
+    assert from_start == pytest.approx(from_end, abs=1e-12)
+
+
+def test_a_total_loss_cannot_be_anchored_to_a_value():
+    with pytest.raises(calc.DegenerateDataError):
+        calc.value_history_ending_at([-1.0, 0.2], ending_value=1000.0)
+
+
+def test_rolling_volatility_returns_one_point_per_complete_window():
+    returns = [0.01, -0.01] * 15  # 30 observations
+
+    rolling = calc.rolling_volatility(returns, window=20)
+
+    assert rolling.size == 30 - 20 + 1
+
+
+def test_each_rolling_point_equals_the_volatility_of_its_own_window():
+    rng = np.random.default_rng(7)
+    returns = rng.normal(0.0004, 0.011, 60).tolist()
+
+    rolling = calc.rolling_volatility(returns, window=20)
+
+    # The first point describes returns[0:20] and the last returns[40:60].
+    assert rolling[0] == pytest.approx(calc.volatility(returns[0:20]), rel=1e-12)
+    assert rolling[-1] == pytest.approx(calc.volatility(returns[40:60]), rel=1e-12)
+
+
+def test_rolling_volatility_can_stay_unannualized():
+    returns = [0.01, -0.01] * 15
+
+    annualized = calc.rolling_volatility(returns, window=20)
+    raw = calc.rolling_volatility(returns, window=20, annualize=False)
+
+    assert annualized[0] == pytest.approx(raw[0] * math.sqrt(252), rel=1e-12)
+
+
+def test_rolling_volatility_needs_a_full_window():
+    # 19 observations cannot fill a 20-observation window. A partial window
+    # would understate the start of every chart drawn from this.
+    with pytest.raises(calc.InsufficientDataError):
+        calc.rolling_volatility([0.01] * 19, window=20)
+
+
+def test_a_rolling_window_of_one_is_not_a_volatility():
+    with pytest.raises(calc.DegenerateDataError):
+        calc.rolling_volatility([0.01] * 30, window=1)
+
+
 def test_a_rate_is_deannualized_geometrically_not_by_division():
     periodic = calc.deannualize_rate(0.05, periods_per_year=252)
 

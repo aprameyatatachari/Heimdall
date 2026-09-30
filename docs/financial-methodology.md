@@ -124,6 +124,45 @@ value, the trough value, and the current drawdown.
 The value path is reconstructed from the fixed-weight return series, so the same
 caveat applies.
 
+The path is anchored so that its **last** point equals the portfolio's current
+value, and the earlier points are what the reconstruction implies it was worth:
+
+```text
+starting_value = current_value / product of (1 + r)
+```
+
+Anchoring the first point at the current value instead would leave the path
+finishing somewhere the portfolio is not, and a chart drawn from it would
+disagree with the valuation beside it. Drawdown is a ratio to the running peak,
+so the choice does not change it; only the currency amounts differ.
+
+## Series returned for charting
+
+Three metrics carry a series in their metadata rather than only a single figure.
+They exist so a chart plots the stored run's own numbers instead of recomputing
+the portfolio in a client, where the two would inevitably drift apart.
+
+| Metric                        | Value                        | Series in `metadata.points`      |
+| ----------------------------- | ---------------------------- | -------------------------------- |
+| `portfolio_value_series`      | The path's final value       | `date`, `value`, `drawdown`      |
+| `rolling_volatility`          | The newest window's figure   | `date`, `value`                  |
+| `benchmark_comparison_series` | The benchmark's total return | `date`, `portfolio`, `benchmark` |
+
+`rolling_volatility` reports one point per **complete** window:
+
+```text
+rolling(t) = stdev(returns[t - window + 1 .. t]) x sqrt(periods_per_year)
+```
+
+Partial windows are never padded or back-filled: a window with fewer
+observations is not comparable with the rest, and drawing one would understate
+the start of every chart. The window is `recent_volatility_window`, 20 periods by
+default, and travels with the metric.
+
+`benchmark_comparison_series` indexes the portfolio and the benchmark to 100 on
+the first common date. Their levels are unrelated, so plotting them raw invites a
+comparison of magnitudes that means nothing; indexing compares growth.
+
 ## Value at Risk
 
 Both estimates are always computed. `var_method` selects which one the interface
