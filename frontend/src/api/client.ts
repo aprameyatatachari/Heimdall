@@ -9,7 +9,22 @@
 
 import { ApiError, NetworkError, toApiError } from "./errors";
 
-export const API_PREFIX = "/api/v1";
+/**
+ * Where the API lives.
+ *
+ * Same-origin by default, which is the deployed layout: Vercel routes `/api` to
+ * the FastAPI function and everything else to this app, so the refresh cookie
+ * stays first-party and there is no CORS at all.
+ *
+ * `VITE_API_BASE_URL` overrides it for the split-project layout, where the API
+ * is on its own domain. That arrangement needs `SameSite=None; Secure` on the
+ * refresh cookie and the frontend's origin in `CORS_ALLOW_ORIGINS`; both are in
+ * docs/deployment.md. The trailing slash is trimmed so a base URL entered either
+ * way produces one slash, not two.
+ */
+const API_BASE = (import.meta.env["VITE_API_BASE_URL"] ?? "").replace(/\/+$/, "");
+
+export const API_PREFIX = `${API_BASE}/api/v1`;
 
 /* -------------------------------------------------------------------------- */
 /* Access token store                                                          */

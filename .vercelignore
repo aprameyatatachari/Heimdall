@@ -1,0 +1,24 @@
+# Nothing here is needed to build the site or run the functions, and everything
+# here is either cold-start weight or something that must not leave the repo.
+
+backend/tests/
+backend/.venv/
+backend/htmlcov/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/resources/
+frontend/e2e/
+frontend/playwright-report/
+frontend/test-results/
+docs/
+scripts/
+compose.yaml
+prompt.md
+*.md
+.env
+.env.*
+!.env.example

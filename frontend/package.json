@@ -18,7 +18,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "api:types": "openapi-typescript src/api/openapi.json -o src/api/schema.d.ts",
-    "api:schema": "cd ../backend && uv run python -c \"import json; from app.main import create_app; open('../frontend/src/api/openapi.json','w',encoding='utf-8').write(json.dumps(create_app().openapi(), indent=2))\""
+    "api:schema": "cd ../backend && uv run python -c \"import json; from app.main import create_app; open('../frontend/src/api/openapi.json','w',encoding='utf-8').write(json.dumps(create_app().openapi(), indent=2))\"",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install --with-deps chromium",
+    "e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",
@@ -31,6 +34,7 @@
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.9.1",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.0.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",

@@ -25,5 +25,10 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     css: true,
     restoreMocks: true,
+    // The end-to-end suite is Playwright's, and it needs a real browser and a
+    // real API. Vitest's default glob would otherwise pick up `e2e/*.spec.ts`
+    // and fail on the first import of @playwright/test.
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    exclude: ["node_modules/**", "dist/**", "e2e/**"],
   },
 });

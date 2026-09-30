@@ -1,0 +1,54 @@
+# Runtime dependencies for the Vercel Python function.
+#
+# Generated, never hand-edited. Regenerate after any dependency change with:
+#
+#     cd backend && uv export --no-dev --no-hashes --no-emit-project #         --no-annotate --format requirements-txt | grep -v '^#' > ../api/requirements.txt
+#
+# Pinned exactly, from backend/uv.lock, so the deployed function resolves the
+# versions the test suite ran against. Development and test dependencies are
+# excluded: a serverless function has no use for pytest, and every package in
+# here is cold-start cost.
+alembic==1.20.0
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.15.1
+argon2-cffi==25.1.0
+argon2-cffi-bindings==26.1.0
+asyncpg==0.31.0
+cffi==2.1.1
+charset-normalizer==3.5.1
+click==8.5.0
+dnspython==2.8.0
+email-validator==2.3.0
+fastapi==0.141.1
+greenlet==3.5.6 ; platform_machine == 'AMD64' or platform_machine == 'WIN32' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'ppc64le' or platform_machine == 'win32' or platform_machine == 'x86_64'
+h11==0.16.0
+httptools==0.8.0
+idna==3.20
+mako==1.4.1
+markupsafe==3.0.3
+numpy==2.5.3
+pandas==3.0.6
+pillow==12.3.0
+pycparser==3.0 ; implementation_name != 'PyPy'
+pydantic==2.13.5
+pydantic-core==2.46.5
+pydantic-settings==2.15.0
+pyjwt==2.14.0
+python-dateutil==2.9.0.post0
+python-dotenv==1.2.3
+python-multipart==0.0.32
+pyyaml==6.0.3
+reportlab==5.0.1
+scipy==1.18.1
+six==1.17.0
+sqlalchemy==2.0.54
+starlette==1.6.0
+structlog==26.1.0
+typing-extensions==4.16.0
+typing-inspection==0.4.4
+tzdata==2026.4 ; sys_platform == 'emscripten' or sys_platform == 'win32'
+uvicorn==0.53.0
+uvloop==0.22.1 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'
+watchfiles==1.2.0
+websockets==17.1
