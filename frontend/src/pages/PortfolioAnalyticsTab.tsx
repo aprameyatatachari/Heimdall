@@ -13,6 +13,7 @@ import { Button } from "@/components/Button";
 import { DataAsOf } from "@/components/DataAsOf";
 import { MetricTile } from "@/components/MetricTile";
 import { Panel } from "@/components/Panel";
+import { Select } from "@/components/Select";
 import { Empty, Failed, Loading } from "@/components/states";
 import { formatDateTime } from "@/lib/format";
 import {
@@ -130,20 +131,17 @@ export function PortfolioAnalyticsTab() {
       {/* --- Which run, and how to make another --------------------------- */}
       <Panel className="flex flex-col gap-5">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className="hm-eyebrow">Analysis run</span>
-            <select
-              value={activeRunId ?? ""}
-              onChange={(event) => setChosenRunId(event.target.value)}
-              className="border-line bg-surface-2 text-ink focus:border-gold h-10 rounded-md border px-3 text-sm outline-none"
-            >
-              {history.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {formatDateTime(item.created_at)} — {STATUS_WORDS[item.status] ?? item.status}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Analysis run"
+            value={activeRunId ?? ""}
+            onChange={(event) => setChosenRunId(event.target.value)}
+          >
+            {history.map((item) => (
+              <option key={item.id} value={item.id}>
+                {formatDateTime(item.created_at)} — {STATUS_WORDS[item.status] ?? item.status}
+              </option>
+            ))}
+          </Select>
 
           <Button
             variant="secondary"

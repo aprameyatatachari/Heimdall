@@ -326,6 +326,12 @@ level. **Precedence is explained on screen, not buried:** a symbol shock beats a
 sector shock, which beats a market shock. Show the resolved shock that will
 actually apply to each holding _before_ the run.
 
+That preview is the one place the client mirrors a backend rule (`resolve_shock`
+in the engine, `src/lib/shocks.ts` here). It is a lookup with no arithmetic in
+it — nothing in the client estimates an impact — and both sides are pinned by
+tests. Two shocks on one target are refused by the API, so the builder catches
+that before the request rather than losing the scenario to a validation error.
+
 Results: starting value, estimated ending value, total impact in currency and
 percent, and a position-level table with each holding's starting value, applied
 return, impact and share of loss. Position impacts must visibly reconcile to the

@@ -31,7 +31,7 @@ Under active development, phase by phase.
 | 5 | Stress-testing engine | **Complete** |
 | 6 | Gjallarhorn Early Warning System backend | **Complete** |
 | 7 | Backend hardening and report generation | **Complete** |
-| 8-11 | Frontend | Started (Waiting on Phase 11) |
+| 8-11 | Frontend | **Complete** |
 | 12 | Vercel deployment and final quality | Not started |
 
 The backend is feature-complete. The frontend begins at Phase 8.

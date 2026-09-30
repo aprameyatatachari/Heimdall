@@ -6,6 +6,9 @@ import { PortfolioAnalyticsTab } from "@/pages/PortfolioAnalyticsTab";
 import { PortfolioHoldingsTab } from "@/pages/PortfolioHoldingsTab";
 import { PortfolioLayout } from "@/pages/PortfolioLayout";
 import { PortfolioListPage } from "@/pages/PortfolioListPage";
+import { PortfolioReportsTab } from "@/pages/PortfolioReportsTab";
+import { PortfolioSignalsTab } from "@/pages/PortfolioSignalsTab";
+import { PortfolioStressTab } from "@/pages/PortfolioStressTab";
 import { PortfolioOverviewTab } from "@/pages/PortfolioOverviewTab";
 import { LandingPage } from "@/pages/LandingPage";
 import { LimitationsPage } from "@/pages/LimitationsPage";
@@ -39,8 +42,10 @@ export function AppRoutes() {
             <Route index element={<PortfolioOverviewTab />} />
             <Route path="holdings" element={<PortfolioHoldingsTab />} />
             <Route path="analytics" element={<PortfolioAnalyticsTab />} />
+            <Route path="stress" element={<PortfolioStressTab />} />
+            <Route path="signals" element={<PortfolioSignalsTab />} />
+            <Route path="reports" element={<PortfolioReportsTab />} />
           </Route>
-          {/* Phase 11 mounts stress testing, signals and reports here. */}
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Route>
       </Route>

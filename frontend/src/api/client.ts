@@ -111,8 +111,17 @@ export interface RequestOptions extends Omit<RequestInit, "body"> {
   formData?: FormData;
   /** Attach the access token. Default true. */
   auth?: boolean;
-  /** Query parameters; undefined and null entries are dropped. */
-  params?: Record<string, string | number | boolean | undefined | null>;
+  /**
+   * Query parameters; undefined, null and empty entries are dropped.
+   *
+   * An array becomes one repeated parameter per entry — `?severity=high&
+   * severity=critical` — which is how FastAPI reads a list-valued query. Joining
+   * them with a comma would arrive as a single unparseable value.
+   */
+  params?: Record<
+    string,
+    string | number | boolean | undefined | null | readonly (string | number)[]
+  >;
 }
 
 function buildUrl(path: string, params?: RequestOptions["params"]): string {
@@ -121,6 +130,10 @@ function buildUrl(path: string, params?: RequestOptions["params"]): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === "") continue;
+    if (Array.isArray(value)) {
+      for (const entry of value) search.append(key, String(entry));
+      continue;
+    }
     search.set(key, String(value));
   }
   const query = search.toString();

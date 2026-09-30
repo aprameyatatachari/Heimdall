@@ -20,6 +20,9 @@ const TABS = [
   { to: ".", label: "Overview", end: true },
   { to: "holdings", label: "Holdings", end: false },
   { to: "analytics", label: "Analytics", end: false },
+  { to: "stress", label: "Stress test", end: false },
+  { to: "signals", label: "Signals", end: false },
+  { to: "reports", label: "Reports", end: false },
 ];
 
 function SummaryTile({
