@@ -31,9 +31,11 @@ if TYPE_CHECKING:
 PORTFOLIO_NAME_MAX_LENGTH = 120
 PORTFOLIO_DESCRIPTION_MAX_LENGTH = 1000
 
-# The MVP supports one base currency per portfolio and does not convert between
-# currencies. Only currencies Heimdall can price consistently are accepted.
-SUPPORTED_BASE_CURRENCIES = ("USD",)
+# One base currency per portfolio, and no conversion between them: a portfolio
+# accepts only instruments priced in its own currency. Adding a currency here is
+# not enough on its own — the market-data provider has to be able to price
+# instruments in it, or every holding comes back unpriced.
+SUPPORTED_BASE_CURRENCIES = ("USD", "INR")
 DEFAULT_BASE_CURRENCY = "USD"
 
 

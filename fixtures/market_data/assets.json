@@ -70,5 +70,59 @@
     "currency": "USD",
     "sector": null,
     "industry": null
+  },
+  {
+    "symbol": "NIFTYBEES.NS",
+    "name": "Nippon India ETF Nifty 50 BeES",
+    "asset_type": "etf",
+    "exchange": "NSE",
+    "currency": "INR",
+    "sector": null,
+    "industry": null
+  },
+  {
+    "symbol": "RELIANCE.NS",
+    "name": "Reliance Industries Limited",
+    "asset_type": "equity",
+    "exchange": "NSE",
+    "currency": "INR",
+    "sector": "Energy",
+    "industry": "Refineries and Petrochemicals"
+  },
+  {
+    "symbol": "TCS.NS",
+    "name": "Tata Consultancy Services Limited",
+    "asset_type": "equity",
+    "exchange": "NSE",
+    "currency": "INR",
+    "sector": "Technology",
+    "industry": "IT Services"
+  },
+  {
+    "symbol": "INFY.NS",
+    "name": "Infosys Limited",
+    "asset_type": "equity",
+    "exchange": "NSE",
+    "currency": "INR",
+    "sector": "Technology",
+    "industry": "IT Services"
+  },
+  {
+    "symbol": "HDFCBANK.NS",
+    "name": "HDFC Bank Limited",
+    "asset_type": "equity",
+    "exchange": "NSE",
+    "currency": "INR",
+    "sector": "Financials",
+    "industry": "Private Sector Bank"
+  },
+  {
+    "symbol": "ITC.NS",
+    "name": "ITC Limited",
+    "asset_type": "equity",
+    "exchange": "NSE",
+    "currency": "INR",
+    "sector": "Consumer Staples",
+    "industry": "Diversified FMCG"
   }
 ]

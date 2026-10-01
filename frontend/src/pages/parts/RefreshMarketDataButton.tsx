@@ -78,7 +78,32 @@ export function RefreshMarketDataButton({ portfolioId }: { portfolioId: string }
               </p>
               <p className="text-ink-muted mt-1">
                 {result.assets_refreshed} asset{result.assets_refreshed === 1 ? "" : "s"}{" "}
-                refreshed · data as of {formatDate(result.data_as_of)} · source {result.source}
+                refreshed · source {result.source}
+              </p>
+              {/* The date the data reaches, not the date that was asked for.
+                  When the provider has nothing newer, saying so is the whole
+                  point: the figures that follow are only as current as this. */}
+              <p className="text-ink-muted mt-1">
+                {result.data_as_of === null ? (
+                  <span className="text-caution">
+                    <span aria-hidden="true" className="me-2">
+                      ◆
+                    </span>
+                    No prices are stored for this window. Every figure that depends on them will
+                    show as unavailable.
+                  </span>
+                ) : (
+                  <>
+                    Prices now run to {formatDate(result.data_as_of)}
+                    {result.data_as_of < result.requested_end && (
+                      <span className="text-caution">
+                        {" "}
+                        — the provider has nothing newer than this, so the window you asked for
+                        ends {formatDate(result.requested_end)} but the data does not.
+                      </span>
+                    )}
+                  </>
+                )}
               </p>
 
               {result.failures.length > 0 && (

@@ -55,3 +55,14 @@ export const signedInHandlers = [
   http.get(`${API}/auth/me`, () => HttpResponse.json(testUser)),
   http.post(`${API}/auth/logout`, () => new HttpResponse(null, { status: 204 })),
 ];
+
+/**
+ * An empty portfolio list.
+ *
+ * Kept out of `signedInHandlers` deliberately: msw resolves with the first
+ * matching handler, so a shared `/portfolios` would shadow the one a test
+ * registers for itself. Tests that only need to land on `/app` add this.
+ */
+export const noPortfoliosHandler = http.get(`${API}/portfolios`, () =>
+  HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
+);

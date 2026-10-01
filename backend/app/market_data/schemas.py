@@ -107,7 +107,14 @@ class MarketDataRefreshResponse(BaseModel):
     """Result of refreshing every holding in a portfolio."""
 
     portfolio_id: uuid.UUID
-    data_as_of: date = Field(description="The as-of date the refresh targeted, in UTC.")
+    data_as_of: date | None = Field(
+        description=(
+            "Newest price date now stored across the refreshed assets, which may be "
+            "older than `requested_end` when the provider has nothing newer. Null "
+            "when no asset has a stored price. The date requested is "
+            "`requested_end`; this is the date the data actually reaches."
+        )
+    )
     source: str
     requested_start: date
     requested_end: date

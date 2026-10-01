@@ -329,8 +329,11 @@ Stated plainly, because a risk tool that hides its own limits is not much use.
 - **Estimates, not forecasts.** VaR at 95% is a loss exceeded 5% of the time in the
   measured window, not a maximum possible loss. Stress tests measure sensitivity to
   stated price changes, not likelihood.
-- **One base currency per portfolio**, currently `USD` only. An asset in another
-  currency is rejected rather than silently combined.
+- **One base currency per portfolio**, `USD` or `INR`. Heimdall does not convert
+  between currencies, so a portfolio accepts only instruments priced in its own:
+  a rupee instrument in a dollar portfolio is rejected rather than silently
+  combined. Adding a currency means adding instruments the provider can price in
+  it, not just widening a list.
 - **Market data is synthetic.** The committed fixtures are shaped to resemble real
   equity behaviour but are generated, not real. See
   [market-data.md](docs/market-data.md).

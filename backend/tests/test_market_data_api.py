@@ -209,6 +209,39 @@ async def test_refresh_reports_every_holding(api):
     assert body["source"] == "fixture"
 
 
+async def test_refresh_reports_the_date_the_data_reaches_not_the_date_requested(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio_with(api, headers, ["SPY"])
+
+    # A window running past the end of the committed fixtures, which is the
+    # ordinary case in production: the provider's newest observation is older
+    # than the date that was asked for.
+    response = await _refresh(api, headers, portfolio_id, start="2024-01-02", end="2025-06-30")
+
+    body = response.json()
+    assert body["requested_end"] == "2025-06-30"
+    # The field that describes the data has to describe the data. Reporting the
+    # requested date here told a caller prices were current when the newest
+    # observation was months old, which is the one thing this product must not do.
+    assert body["data_as_of"] == "2024-12-31"
+    assert body["data_as_of"] < body["requested_end"]
+    assert body["data_as_of"] == max(
+        result["latest_date"] for result in body["results"] if result["latest_date"]
+    )
+
+
+async def test_a_refresh_that_stores_nothing_reports_no_as_of_date(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio_with(api, headers, ["SPY"])
+
+    # A valid window the fixtures do not cover at all: nothing is stored, so
+    # there is no as-of date. Null, never the date that was asked for.
+    response = await _refresh(api, headers, portfolio_id, start="2025-02-03", end="2025-06-30")
+
+    assert response.status_code == 200, response.text
+    assert response.json()["data_as_of"] is None
+
+
 async def test_refresh_enriches_assets_created_by_an_import(api):
     """A CSV import creates a placeholder asset; a refresh fills in its metadata."""
     headers = await _signed_in_user(api)

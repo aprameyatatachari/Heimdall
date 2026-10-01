@@ -6561,10 +6561,17 @@
             "title": "Portfolio Id"
           },
           "data_as_of": {
-            "type": "string",
-            "format": "date",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Data As Of",
-            "description": "The as-of date the refresh targeted, in UTC."
+            "description": "Newest price date now stored across the refreshed assets, which may be older than `requested_end` when the provider has nothing newer. Null when no asset has a stored price. The date requested is `requested_end`; this is the date the data actually reaches."
           },
           "source": {
             "type": "string",
@@ -7140,7 +7147,7 @@
           "base_currency": {
             "type": "string",
             "title": "Base Currency",
-            "description": "ISO 4217 code. Heimdall does not convert between currencies, so a portfolio accepts only assets in this currency. Supported: USD.",
+            "description": "ISO 4217 code. Heimdall does not convert between currencies, so a portfolio accepts only assets in this currency. Supported: USD, INR.",
             "default": "USD"
           },
           "benchmark_symbol": {

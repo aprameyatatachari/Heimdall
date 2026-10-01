@@ -125,6 +125,56 @@ async def test_two_users_may_use_the_same_portfolio_name(api):
     assert response.status_code == 201
 
 
+async def test_a_rupee_portfolio_holds_indian_instruments(api):
+    headers = await _signed_in_user(api)
+
+    created = await api.post(
+        PORTFOLIOS,
+        json={"name": "India", "base_currency": "inr", "benchmark_symbol": "NIFTYBEES.NS"},
+        headers=headers,
+    )
+
+    assert created.status_code == 201, created.text
+    portfolio = created.json()
+    assert portfolio["base_currency"] == "INR"
+    assert portfolio["benchmark_symbol"] == "NIFTYBEES.NS"
+
+    added = await api.post(
+        f"{PORTFOLIOS}/{portfolio['id']}/positions",
+        json={"symbol": "RELIANCE.NS", "quantity": "50", "average_cost": "2400.75"},
+        headers=headers,
+    )
+
+    assert added.status_code == 201, added.text
+    assert added.json()["currency"] == "INR"
+
+
+async def test_a_dollar_portfolio_refuses_a_rupee_instrument(api):
+    """Heimdall does not convert, so the two cannot be mixed in one portfolio."""
+    headers = await _signed_in_user(api)
+
+    rupees = await api.post(
+        PORTFOLIOS, json={"name": "India", "base_currency": "INR"}, headers=headers
+    )
+    await api.post(
+        f"{PORTFOLIOS}/{rupees.json()['id']}/positions",
+        json={"symbol": "TCS.NS", "quantity": "10", "average_cost": "3500"},
+        headers=headers,
+    )
+
+    dollars = await api.post(
+        PORTFOLIOS, json={"name": "US", "base_currency": "USD"}, headers=headers
+    )
+    response = await api.post(
+        f"{PORTFOLIOS}/{dollars.json()['id']}/positions",
+        json={"symbol": "TCS.NS", "quantity": "10", "average_cost": "42"},
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+    assert "INR" in response.json()["error"]["message"]
+
+
 async def test_unsupported_base_currency_is_rejected(api):
     headers = await _signed_in_user(api)
 

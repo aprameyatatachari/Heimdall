@@ -87,13 +87,19 @@ factor used throughout.
 
 ## Currency
 
-One base currency per portfolio, and only `USD` is supported today. An asset whose
+One base currency per portfolio. `USD` and `INR` are supported. An asset whose
 provider currency differs from the portfolio's base currency is **rejected** with
 `unsupported_currency` or `currency_mismatch`.
 
 Heimdall does not convert between currencies, so combining them would silently
 produce meaningless totals. Adding conversion means dated FX rates and an explicit
-conversion step, not a spot rate applied retroactively.
+conversion step, not a spot rate applied retroactively. A reader who wants both
+markets keeps two portfolios, each measured in its own currency, which is also the
+only arrangement in which a volatility or a Sharpe ratio means anything.
+
+Supporting a currency takes more than adding it to `SUPPORTED_BASE_CURRENCIES`:
+the provider has to be able to price instruments in it, or every holding comes
+back unpriced and every metric comes back unavailable.
 
 ## Asset enrichment
 
@@ -114,12 +120,23 @@ no network, no third-party uptime, no API key.
 ```text
 fixtures/market_data/
   assets.json     metadata for each symbol
-  SPY.csv  AAPL.csv  MSFT.csv  NVDA.csv
+
+  SPY.csv  AAPL.csv  MSFT.csv  NVDA.csv       United States, USD
   JPM.csv  XOM.csv   JNJ.csv   TLT.csv
+
+  NIFTYBEES.NS.csv  RELIANCE.NS.csv           India, INR
+  TCS.NS.csv        INFY.NS.csv
+  HDFCBANK.NS.csv   ITC.NS.csv
 ```
 
-Eight instruments across five sectors plus a bond ETF, 4,697 weekdays from
-2007-01-01 to 2024-12-31.
+Fourteen instruments, 4,697 weekdays from 2007-01-01 to 2024-12-31: eight in
+dollars across five sectors plus a bond ETF, and six in rupees across four.
+
+**Two market factors, not one.** SPY drives the US names and NIFTYBEES.NS drives
+the Indian ones, each on its own random stream. A single factor would have made
+every Indian holding correlate with the S&P by construction, and the correlation
+heatmap would then be showing an artefact of the generator rather than anything
+about the instruments.
 
 ### The data is synthetic
 
@@ -137,6 +154,11 @@ characteristics:
 | AAPL | 9.16% | 35.13% | -72.58% |
 | JNJ | 3.93% | 15.48% | -38.14% |
 | TLT | 3.52% | 13.09% | -26.88% |
+
+The Indian series are drawn the same way from their own factor. They are not
+calibrated to the real Nifty: NIFTYBEES.NS compounds more slowly here than the
+index did over the same years, because it is one path of a random process rather
+than a record of one. Nothing in the product depends on the level.
 
 TLT carries a negative market beta, so it diversifies — which is what makes the
 correlation rule and risk attribution worth testing.
@@ -183,11 +205,22 @@ trading days.
 **One unavailable symbol does not abort the refresh.** Failures are collected under
 `failures` and the remaining assets still update.
 
+**`data_as_of` is the date the data reaches, not the date that was asked for.**
+Those are different facts and the response carries both: `requested_end` is the
+window's end, and `data_as_of` is the newest price now stored across the assets
+refreshed — older than `requested_end` whenever the provider has nothing newer,
+and null when nothing is stored at all. The field once reported the requested
+date, which told a caller prices were current to today when the newest
+observation was a year old; that is the one thing this product must never do, so
+the name now means what it means everywhere else.
+
 ## Limitations
 
 - **Daily closes only.** No intraday data.
-- **Weekday calendar.** No exchange holidays.
-- **USD only.**
+- **Weekday calendar.** No exchange holidays, in either market. The Indian
+  calendar has more of them than the US one, so an NSE series overstates its
+  expected trading days by more.
+- **USD and INR only**, and no conversion between them.
 - **Synthetic fixture data.** Realistic in shape, not real.
 - **No corporate-action detail.** Only what the adjusted close already reflects;
   an unadjusted split shows up as a flagged extreme return.

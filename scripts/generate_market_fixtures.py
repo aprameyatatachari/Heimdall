@@ -60,6 +60,11 @@ class SymbolSpec:
     market_beta: float
     # Multiplies the crisis drift, so defensive names fall less.
     crisis_sensitivity: float
+    # Which market factor drives it, and what it is priced in. Two markets rather
+    # than one: Indian equities move with their own index, and a portfolio holding
+    # both would otherwise show a correlation this generator had invented.
+    market: str = "US"
+    currency: str = "USD"
 
 
 SPECS: list[SymbolSpec] = [
@@ -79,6 +84,26 @@ SPECS: list[SymbolSpec] = [
                "Pharmaceuticals", 66.0, 0.130, 0.15, 0.60, 0.55),
     SymbolSpec("TLT", "iShares 20+ Year Treasury Bond ETF", "etf", "NASDAQ", None, None,
                88.0, 0.005, 0.13, -0.25, -0.40),
+
+    # --- India, priced in INR ------------------------------------------------
+    # NIFTYBEES is the market factor for this set, the way SPY is for the US one.
+    # Prices are the start of 2007 in rupees, so the series spans the same
+    # history and the same crisis windows as everything else.
+    SymbolSpec("NIFTYBEES.NS", "Nippon India ETF Nifty 50 BeES", "etf", "NSE", None, None,
+               37.0, 0.185, 0.19, 1.00, 1.00, market="IN", currency="INR"),
+    SymbolSpec("RELIANCE.NS", "Reliance Industries Limited", "equity", "NSE", "Energy",
+               "Refineries and Petrochemicals", 130.0, 0.200, 0.28, 1.05, 1.15,
+               market="IN", currency="INR"),
+    SymbolSpec("TCS.NS", "Tata Consultancy Services Limited", "equity", "NSE", "Technology",
+               "IT Services", 270.0, 0.185, 0.24, 0.80, 0.85, market="IN", currency="INR"),
+    SymbolSpec("INFY.NS", "Infosys Limited", "equity", "NSE", "Technology",
+               "IT Services", 230.0, 0.160, 0.26, 0.85, 0.90, market="IN", currency="INR"),
+    SymbolSpec("HDFCBANK.NS", "HDFC Bank Limited", "equity", "NSE", "Financials",
+               "Private Sector Bank", 110.0, 0.195, 0.27, 1.10, 1.45,
+               market="IN", currency="INR"),
+    SymbolSpec("ITC.NS", "ITC Limited", "equity", "NSE", "Consumer Staples",
+               "Diversified FMCG", 65.0, 0.145, 0.21, 0.65, 0.60,
+               market="IN", currency="INR"),
 ]
 
 TRADING_DAYS_PER_YEAR = 252
@@ -104,16 +129,27 @@ def crisis_regime(day: date) -> tuple[float, float] | None:
     return None
 
 
-def market_returns(days: list[date], rng: np.random.Generator) -> np.ndarray:
-    """Daily LOG returns for the market factor, with crisis regimes applied.
+def market_spec(market: str) -> SymbolSpec:
+    """The index-like instrument that drives a market."""
+    for spec in SPECS:
+        if spec.market == market:
+            return spec
+    raise ValueError(f"No market factor is defined for {market}.")
+
+
+def market_returns(
+    days: list[date],
+    rng: np.random.Generator,
+    index: SymbolSpec,
+) -> np.ndarray:
+    """Daily LOG returns for one market factor, with crisis regimes applied.
 
     Working in log space keeps the realized compound drift equal to the requested
     annual drift; using arithmetic returns with multiplicative compounding would
     lose sigma-squared-over-two of drift every year.
     """
-    spy = SPECS[0]
-    base_drift = np.log1p(spy.annual_drift) / TRADING_DAYS_PER_YEAR
-    base_volatility = spy.annual_volatility / np.sqrt(TRADING_DAYS_PER_YEAR)
+    base_drift = np.log1p(index.annual_drift) / TRADING_DAYS_PER_YEAR
+    base_volatility = index.annual_volatility / np.sqrt(TRADING_DAYS_PER_YEAR)
 
     returns = np.empty(len(days))
     for index, day in enumerate(days):
@@ -130,18 +166,19 @@ def symbol_returns(
     days: list[date],
     market: np.ndarray,
     rng: np.random.Generator,
+    index: SymbolSpec,
 ) -> np.ndarray:
     """Daily log returns as market beta plus idiosyncratic noise."""
-    if spec.symbol == "SPY":
+    if spec.symbol == index.symbol:
         return market
 
     idiosyncratic_annual = max(
-        spec.annual_volatility**2 - (spec.market_beta * SPECS[0].annual_volatility) ** 2,
+        spec.annual_volatility**2 - (spec.market_beta * index.annual_volatility) ** 2,
         0.0004,
     )
     idiosyncratic_daily = np.sqrt(idiosyncratic_annual / TRADING_DAYS_PER_YEAR)
     alpha = (
-        np.log1p(spec.annual_drift) - spec.market_beta * np.log1p(SPECS[0].annual_drift)
+        np.log1p(spec.annual_drift) - spec.market_beta * np.log1p(index.annual_drift)
     ) / TRADING_DAYS_PER_YEAR
 
     returns = np.empty(len(days))
@@ -202,7 +239,7 @@ def write_metadata() -> None:
             "name": spec.name,
             "asset_type": spec.asset_type,
             "exchange": spec.exchange,
-            "currency": "USD",
+            "currency": spec.currency,
             "sector": spec.sector,
             "industry": spec.industry,
         }
@@ -218,13 +255,21 @@ def main() -> None:
     OUTPUT.mkdir(parents=True, exist_ok=True)
     days = trading_days(START, END)
 
-    rng = np.random.default_rng(SEED)
-    market = market_returns(days, rng)
+    # One stream per market, each seeded separately, so adding a market leaves
+    # every file of the other one byte for byte identical.
+    factors: dict[str, np.ndarray] = {}
+    for offset, market in enumerate(sorted({spec.market for spec in SPECS}, reverse=True)):
+        index = market_spec(market)
+        factors[market] = market_returns(
+            days, np.random.default_rng(SEED + offset * 101), index
+        )
 
     for spec in SPECS:
         # One stream per symbol keeps each file stable when another is added.
         symbol_rng = np.random.default_rng(SEED + sum(ord(char) for char in spec.symbol))
-        returns = symbol_returns(spec, days, market, symbol_rng)
+        returns = symbol_returns(
+            spec, days, factors[spec.market], symbol_rng, market_spec(spec.market)
+        )
         write_series(spec, days, returns, symbol_rng)
 
     write_metadata()

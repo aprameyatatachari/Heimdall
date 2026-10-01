@@ -1442,10 +1442,9 @@ export interface components {
             portfolio_id: string;
             /**
              * Data As Of
-             * Format: date
-             * @description The as-of date the refresh targeted, in UTC.
+             * @description Newest price date now stored across the refreshed assets, which may be older than `requested_end` when the provider has nothing newer. Null when no asset has a stored price. The date requested is `requested_end`; this is the date the data actually reaches.
              */
-            data_as_of: string;
+            data_as_of: string | null;
             /** Source */
             source: string;
             /**
@@ -1728,7 +1727,7 @@ export interface components {
             description?: string | null;
             /**
              * Base Currency
-             * @description ISO 4217 code. Heimdall does not convert between currencies, so a portfolio accepts only assets in this currency. Supported: USD.
+             * @description ISO 4217 code. Heimdall does not convert between currencies, so a portfolio accepts only assets in this currency. Supported: USD, INR.
              * @default USD
              */
             base_currency: string;

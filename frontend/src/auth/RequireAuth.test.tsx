@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { AppRoutes } from "@/app/routes";
-import { signedInHandlers } from "@/test/handlers";
+import { noPortfoliosHandler, signedInHandlers } from "@/test/handlers";
 import { renderApp } from "@/test/render";
 import { server } from "@/test/server";
 
@@ -23,13 +23,11 @@ describe("protected routes", () => {
   });
 
   it("admits a signed-in visitor", async () => {
-    server.use(...signedInHandlers);
+    server.use(...signedInHandlers, noPortfoliosHandler);
 
     renderApp(<AppRoutes />, { route: "/app" });
 
-    expect(
-      await screen.findByRole("heading", { name: /the watch is being built/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /your watch/i })).toBeInTheDocument();
   });
 
   it("returns to the requested page after signing in", async () => {

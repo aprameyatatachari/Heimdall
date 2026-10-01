@@ -1,13 +1,13 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ApiError } from "@/api/errors";
-import { useAssetSearch, useCreatePosition, useUpdatePosition } from "@/api/portfolios";
+import { useCreatePosition, useUpdatePosition } from "@/api/portfolios";
 import type { PositionResponse } from "@/api/types";
 import { Alert } from "@/components/Alert";
 import { Button } from "@/components/Button";
 import { Dialog } from "@/components/Dialog";
 import { Field } from "@/components/Field";
-import { useDebounced } from "@/hooks/useDebounced";
+import { SymbolSearch } from "@/components/SymbolSearch";
 
 /** A decimal the backend will accept: digits, one optional point, no sign. */
 const DECIMAL = /^\d+(\.\d+)?$/;
@@ -16,18 +16,20 @@ export function PositionFormDialog({
   open,
   onClose,
   portfolioId,
+  currency,
   position,
 }: {
   open: boolean;
   onClose: () => void;
   portfolioId: string;
+  /** The portfolio's base currency. Suggestions are limited to it. */
+  currency: string;
   /** Present when editing an existing holding. */
   position?: PositionResponse;
 }) {
   const editing = Boolean(position);
   const create = useCreatePosition(portfolioId);
   const update = useUpdatePosition(portfolioId);
-  const listId = useId();
 
   const [symbol, setSymbol] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -35,10 +37,6 @@ export function PositionFormDialog({
   const [purchaseDate, setPurchaseDate] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
-
-  // The search fires on a settled value, not on every keystroke.
-  const debouncedSymbol = useDebounced(symbol, 250);
-  const search = useAssetSearch(editing ? "" : debouncedSymbol);
 
   useEffect(() => {
     if (!open) return;
@@ -128,33 +126,19 @@ export function PositionFormDialog({
       <form id="position-form" onSubmit={submit} noValidate className="flex flex-col gap-5">
         {formError && <Alert tone="error">{formError}</Alert>}
 
-        <div>
-          <Field
-            label="Symbol"
-            required
-            disabled={editing}
-            list={editing ? undefined : listId}
-            autoComplete="off"
-            placeholder="AAPL"
-            value={symbol}
-            onChange={(event) => setSymbol(event.target.value)}
-            error={errors.symbol}
-            hint={
-              editing
-                ? "The instrument cannot be changed. Remove the holding and add another instead."
-                : "Start typing to search the instrument catalogue."
-            }
-          />
-          {!editing && (
-            <datalist id={listId}>
-              {(search.data?.items ?? []).map((item) => (
-                <option key={item.symbol} value={item.symbol}>
-                  {item.name ?? item.symbol} · {item.asset_type} · {item.currency}
-                </option>
-              ))}
-            </datalist>
-          )}
-        </div>
+        <SymbolSearch
+          value={symbol}
+          onChange={setSymbol}
+          required
+          disabled={editing}
+          error={errors.symbol}
+          currency={currency}
+          hint={
+            editing
+              ? "The instrument cannot be changed. Remove the holding and add another instead."
+              : `Start typing to search the catalogue. This portfolio holds ${currency} instruments.`
+          }
+        />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
@@ -174,7 +158,7 @@ export function PositionFormDialog({
             value={averageCost}
             onChange={(event) => setAverageCost(event.target.value)}
             error={errors.average_cost}
-            hint="Per unit, in the portfolio's currency."
+            hint={`Per unit, in ${currency}.`}
           />
         </div>
 

@@ -42,7 +42,7 @@ These outrank every convenience.
 | Routing       | React Router                                               |
 | Server state  | TanStack Query                                             |
 | Forms         | React Hook Form + Zod                                      |
-| Charts        | Recharts or visx — must support broken lines for data gaps |
+| Charts        | Hand-drawn SVG — see DESIGN.md 6.6 for why no library ships |
 | Smooth scroll | Lenis (Outer Realm only)                                   |
 | Animation     | GSAP + ScrollTrigger + SplitText (Outer Realm only)        |
 | Tests         | Vitest + React Testing Library + MSW                       |
@@ -234,7 +234,13 @@ price, market value, weight, unrealized P/L. Sortable. Unpriced holdings are
 shown with `—` and _"No price available"_, **never** zero, and never dropped
 from the table.
 
-Add position: symbol via `GET /assets/search` (debounced, keyboard navigable),
+Add position: symbol via `GET /assets/search` through a real combobox — debounced,
+arrow-key navigable, `aria-activedescendant`, and filtered to the portfolio's own
+currency, since a rupee portfolio cannot hold a dollar instrument. Not a native
+`<datalist>`: it closes itself whenever its options change, which is every
+keystroke when the options come from a search. Typing a symbol the catalogue does
+not list is still allowed — an incomplete catalogue is not a reason to refuse
+someone's holding.
 quantity and average cost as decimal strings — parsed as decimals, never floats,
 never rounded in the client. Edit is inline. Delete confirms.
 

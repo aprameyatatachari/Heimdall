@@ -180,12 +180,14 @@ export function PortfolioHoldingsTab() {
         open={adding}
         onClose={() => setAdding(false)}
         portfolioId={portfolioId}
+        currency={currency}
       />
 
       <PositionFormDialog
         open={editing !== null}
         onClose={() => setEditing(null)}
         portfolioId={portfolioId}
+        currency={currency}
         position={editing ?? undefined}
       />
 

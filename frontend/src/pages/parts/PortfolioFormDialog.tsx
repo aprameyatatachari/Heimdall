@@ -11,6 +11,19 @@ import { Alert } from "@/components/Alert";
 import { Button } from "@/components/Button";
 import { Dialog } from "@/components/Dialog";
 import { Field } from "@/components/Field";
+import { Select } from "@/components/Select";
+
+/**
+ * The currencies the backend accepts.
+ *
+ * Listed rather than free-typed: there are exactly two, the backend refuses the
+ * rest, and a text box invites someone to enter EUR and be told no afterwards.
+ * The backend stays the authority — this list only has to be a subset of it.
+ */
+const CURRENCIES = [
+  { code: "USD", label: "US dollar", benchmark: "SPY" },
+  { code: "INR", label: "Indian rupee", benchmark: "NIFTYBEES.NS" },
+] as const;
 
 // ISO 4217 codes are three letters. The backend is the authority on which of
 // them it will actually accept.
@@ -59,6 +72,7 @@ export function PortfolioFormDialog({
     handleSubmit,
     reset,
     setError,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -82,6 +96,12 @@ export function PortfolioFormDialog({
       benchmark_symbol: portfolio?.benchmark_symbol ?? "",
     });
   }, [open, portfolio, reset]);
+
+  // Suggesting SPY to someone building a rupee portfolio would be suggesting a
+  // benchmark they cannot hold.
+  const chosenCurrency = watch("base_currency") || "USD";
+  const suggestedBenchmark =
+    CURRENCIES.find((option) => option.code === chosenCurrency)?.benchmark ?? "SPY";
 
   const onSubmit = handleSubmit(async (raw) => {
     setFormError(null);
@@ -162,24 +182,29 @@ export function PortfolioFormDialog({
           {...register("description")}
         />
 
-        <Field
+        <Select
           label="Base currency"
-          placeholder="USD"
           required
           disabled={editing}
           hint={
             editing
               ? "Fixed after creation: every stored amount is denominated in it."
-              : "Three-letter code. Every value in this portfolio is reported in it."
+              : "A portfolio holds instruments priced in its own currency. Heimdall does not convert between them."
           }
           error={errors.base_currency?.message}
           {...register("base_currency")}
-        />
+        >
+          {CURRENCIES.map((option) => (
+            <option key={option.code} value={option.code}>
+              {option.code} — {option.label}
+            </option>
+          ))}
+        </Select>
 
         <Field
           label="Benchmark symbol"
-          placeholder="SPY"
-          hint="Optional. Used to compare this portfolio against a reference index."
+          placeholder={suggestedBenchmark}
+          hint={`Optional. A reference index to compare this portfolio against — ${suggestedBenchmark} tracks a broad ${chosenCurrency} market.`}
           error={errors.benchmark_symbol?.message}
           {...register("benchmark_symbol")}
         />

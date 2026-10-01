@@ -99,7 +99,9 @@ class IngestResult:
 class RefreshSummary:
     """Aggregate outcome of refreshing every asset in a portfolio."""
 
-    data_as_of: date
+    # The date the refresh aimed at, which is not the same thing as the newest
+    # date it came back with. See `data_as_of`.
+    requested_as_of: date
     results: list[IngestResult] = field(default_factory=list)
     failures: list[tuple[str, str]] = field(default_factory=list)
 
@@ -107,6 +109,23 @@ class RefreshSummary:
     def bars_written(self) -> int:
         """Total bars inserted or updated."""
         return sum(result.bars_written for result in self.results)
+
+    @property
+    def data_as_of(self) -> date | None:
+        """The newest price date now stored, across every asset refreshed.
+
+        The date asked for and the date received are different facts, and only
+        the second one describes the data. Reporting the requested date here
+        told a caller that prices were current to today when the provider's
+        newest observation was a year old — which is the one thing this product
+        must never do. Null when nothing is stored for any asset.
+        """
+        dates = [
+            result.latest_stored_date
+            for result in self.results
+            if result.latest_stored_date is not None
+        ]
+        return max(dates) if dates else None
 
 
 class MarketDataService:
@@ -302,7 +321,7 @@ class MarketDataService:
         updated, so each failure is captured and reported.
         """
         window = self.resolve_window(start, end)
-        summary = RefreshSummary(data_as_of=min(self._clock.now().date(), window.end))
+        summary = RefreshSummary(requested_as_of=min(self._clock.now().date(), window.end))
 
         for asset in assets:
             try:

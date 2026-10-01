@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
 import { AppRoutes } from "@/app/routes";
-import { API, errorBody, tokenResponse } from "@/test/handlers";
+import { API, errorBody, noPortfoliosHandler, tokenResponse } from "@/test/handlers";
 import { renderApp } from "@/test/render";
 import { server } from "@/test/server";
 
@@ -16,6 +16,8 @@ describe("RegisterPage", () => {
         HttpResponse.json(tokenResponse(), { status: 201 }),
       ),
       http.get(`${API}/auth/me`, () => HttpResponse.json(tokenResponse().user)),
+      // The home this lands on lists portfolios.
+      noPortfoliosHandler,
     );
 
     const { user } = renderApp(<AppRoutes />, { route: "/register" });
@@ -24,9 +26,7 @@ describe("RegisterPage", () => {
     await user.type(screen.getByLabelText(/confirm password/i), PASSWORD);
     await user.click(screen.getByRole("button", { name: /^create account$/i }));
 
-    expect(
-      await screen.findByRole("heading", { name: /the watch is being built/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /your watch/i })).toBeInTheDocument();
   });
 
   it("enforces the backend's minimum password length before submitting", async () => {

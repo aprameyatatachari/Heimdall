@@ -117,7 +117,8 @@ identical on the wire and no client loses precision to binary floating point.
 
 ## Currency limitation
 
-A portfolio has one `base_currency`, and only `USD` is supported at present.
+A portfolio has one `base_currency`: `USD` or `INR`. It is fixed at creation, and a
+portfolio accepts only instruments priced in it.
 Adding an asset denominated in another currency is rejected with
 `422 currency_mismatch`. Heimdall does not convert between currencies, so
 combining them would silently produce meaningless totals.
