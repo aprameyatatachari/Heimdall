@@ -234,13 +234,17 @@ price, market value, weight, unrealized P/L. Sortable. Unpriced holdings are
 shown with `—` and _"No price available"_, **never** zero, and never dropped
 from the table.
 
-Add position: symbol via `GET /assets/search` through a real combobox — debounced,
-arrow-key navigable, `aria-activedescendant`, and filtered to the portfolio's own
-currency, since a rupee portfolio cannot hold a dollar instrument. Not a native
-`<datalist>`: it closes itself whenever its options change, which is every
-keystroke when the options come from a search. Typing a symbol the catalogue does
-not list is still allowed — an incomplete catalogue is not a reason to refuse
-someone's holding.
+Add position: symbol via `GET /assets/search` through a real combobox — one that
+**opens on its own control**, not only when something has been typed. With no
+query it lists the largest instruments in the portfolio's currency, captioned so
+that size is not read as a recommendation; typing searches for anything else.
+Debounced, arrow-key navigable, `aria-activedescendant`, and narrowed by currency
+server-side, since a rupee portfolio cannot hold a dollar instrument.
+
+Not a native `<datalist>`: it closes itself whenever its options change, which is
+every keystroke when the options come from a search. Typing a symbol the
+catalogue does not list is still allowed — an incomplete catalogue is not a
+reason to refuse someone's holding.
 quantity and average cost as decimal strings — parsed as decimals, never floats,
 never rounded in the client. Edit is inline. Delete confirms.
 

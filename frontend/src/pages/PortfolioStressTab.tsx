@@ -57,6 +57,7 @@ export function PortfolioStressTab() {
   return (
     <div className="flex flex-col gap-8">
       <ScenarioBuilder
+        portfolioId={portfolioId}
         scenarios={catalogue.data.items}
         limitations={catalogue.data.limitations ?? []}
         holdings={summary.data?.holdings ?? []}

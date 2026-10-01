@@ -28,7 +28,18 @@ portfolio_market_data_router = APIRouter(prefix="/portfolios", tags=["market dat
 
 SymbolPath = Path(description="Ticker symbol, for example AAPL.")
 PortfolioIdPath = Path(description="Portfolio identifier.")
-SearchQuery = Query(min_length=1, max_length=64, description="Symbol or name fragment.")
+SearchQuery = Query(
+    default=None,
+    min_length=1,
+    max_length=64,
+    description="Symbol or name fragment. Omit to browse the largest instruments instead.",
+)
+CurrencyQuery = Query(
+    default=None,
+    min_length=3,
+    max_length=3,
+    description="Restrict results to instruments priced in this currency.",
+)
 SearchLimit = Query(default=10, ge=1, le=50)
 StartDateQuery = Query(default=None, description="Inclusive start date.")
 EndDateQuery = Query(default=None, description="Inclusive end date.")
@@ -63,23 +74,35 @@ def _refresh_result(result: IngestResult) -> AssetRefreshResult:
 @assets_router.get(
     "/search",
     response_model=AssetSearchResponse,
-    summary="Search instruments",
+    summary="Search or browse instruments",
     description=(
         "Searches the configured market-data source for instruments by symbol or "
-        "name. Results come from the data source, not from Heimdall's own records."
+        "name. Results come from the data source, not from Heimdall's own records. "
+        "With no `query`, returns the largest instruments in the market that uses "
+        "`currency` - a starting point for browsing, ordered by size, which is not "
+        "a recommendation. With a `query`, `currency` filters the matches."
     ),
 )
 async def search_assets(
     current_user: CurrentUser,
     service: MarketDataServiceDep,
-    query: str = SearchQuery,
+    query: str | None = SearchQuery,
+    currency: str | None = CurrencyQuery,
     limit: int = SearchLimit,
 ) -> AssetSearchResponse:
-    """Search for instruments."""
+    """Search for instruments, or browse them."""
     del current_user  # authentication only; search is not user-specific
-    items = await service.search(query, limit=limit)
+    wanted = currency.upper() if currency else None
+
+    if query is None or not query.strip():
+        items = await service.list_popular(currency=wanted or "USD", limit=limit)
+    else:
+        items = await service.search(query, limit=limit)
+        if wanted is not None:
+            items = [item for item in items if item.currency.upper() == wanted]
+
     return AssetSearchResponse(
-        query=query,
+        query=query or "",
         source=service.source,
         items=[
             AssetSearchItem(

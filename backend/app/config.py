@@ -86,9 +86,11 @@ class Settings(BaseSettings):
     log_format: Literal["json", "console"] = "console"
 
     # --- Market data ----------------------------------------------------------
-    # Only the offline fixture provider exists so far. Every test and local
-    # development run uses it, so results never depend on a third party.
-    market_data_provider: Literal["fixture"] = "fixture"
+    # `fixture` reads committed offline series; `yahoo` reads Yahoo Finance.
+    # The default is the offline one, deliberately: every test and every fresh
+    # clone then runs without a network, and no result depends on a third party
+    # being up. Set MARKET_DATA_PROVIDER=yahoo for live prices.
+    market_data_provider: Literal["fixture", "yahoo"] = "fixture"
     market_data_api_key: SecretStr | None = None
     # Where the fixture provider reads its committed series from. Set explicitly in
     # a container, where the repository's `fixtures/` directory is mounted rather

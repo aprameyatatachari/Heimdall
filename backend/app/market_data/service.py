@@ -161,6 +161,19 @@ class MarketDataService:
             logger.warning("market_data_search_failed", error=str(exc))
             raise MarketDataUnavailableError() from exc
 
+    async def list_popular(self, *, currency: str, limit: int = 20) -> list[AssetSearchResult]:
+        """Instruments to offer before anything has been typed.
+
+        A provider that cannot answer this returns nothing rather than failing:
+        an empty browse list is a smaller problem than a symbol field that will
+        not open.
+        """
+        try:
+            return await self._provider.list_popular(currency=currency, limit=limit)
+        except ProviderError as exc:
+            logger.warning("market_data_popular_failed", error=str(exc))
+            return []
+
     async def resolve_asset(self, raw_symbol: str, *, enrich: bool = True) -> Asset:
         """Return the stored asset for a symbol, creating and enriching it if needed.
 

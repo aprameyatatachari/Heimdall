@@ -1626,22 +1626,49 @@
         "tags": [
           "market data"
         ],
-        "summary": "Search instruments",
-        "description": "Searches the configured market-data source for instruments by symbol or name. Results come from the data source, not from Heimdall's own records.",
+        "summary": "Search or browse instruments",
+        "description": "Searches the configured market-data source for instruments by symbol or name. Results come from the data source, not from Heimdall's own records. With no `query`, returns the largest instruments in the market that uses `currency` - a starting point for browsing, ordered by size, which is not a recommendation. With a `query`, `currency` filters the matches.",
         "operationId": "search_assets_api_v1_assets_search_get",
         "parameters": [
           {
             "name": "query",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 64,
-              "description": "Symbol or name fragment.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Symbol or name fragment. Omit to browse the largest instruments instead.",
               "title": "Query"
             },
-            "description": "Symbol or name fragment."
+            "description": "Symbol or name fragment. Omit to browse the largest instruments instead."
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 3
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Restrict results to instruments priced in this currency.",
+              "title": "Currency"
+            },
+            "description": "Restrict results to instruments priced in this currency."
           },
           {
             "name": "limit",

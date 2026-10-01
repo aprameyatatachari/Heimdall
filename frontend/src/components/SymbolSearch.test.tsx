@@ -29,11 +29,19 @@ const RESULTS = {
   ],
 };
 
+/** Mirrors the endpoint: `currency` narrows the result, server-side. */
+function searchHandler() {
+  return http.get(`${API}/assets/search`, ({ request }) => {
+    const wanted = new URL(request.url).searchParams.get("currency");
+    const items = wanted
+      ? RESULTS.items.filter((item) => item.currency === wanted)
+      : RESULTS.items;
+    return HttpResponse.json({ ...RESULTS, items });
+  });
+}
+
 beforeEach(() => {
-  server.use(
-    ...signedInHandlers,
-    http.get(`${API}/assets/search`, () => HttpResponse.json(RESULTS)),
-  );
+  server.use(...signedInHandlers, searchHandler());
 });
 
 /** Controlled with real state, the way the dialog holds it. */
@@ -70,9 +78,10 @@ describe("the symbol search", () => {
     expect(screen.getByRole("option", { name: /NVDA/ })).toBeInTheDocument();
   });
 
-  it("suggests only instruments the portfolio could hold", async () => {
+  it("asks for only the instruments the portfolio could hold", async () => {
     // A rupee portfolio cannot hold a dollar instrument, so offering one is
-    // offering a holding the API will refuse.
+    // offering a holding the API will refuse. The narrowing happens server-side
+    // — the client sends the currency and renders what comes back.
     const { user } = renderApp(<Harness currency="INR" />);
 
     await user.type(screen.getByRole("combobox"), "re");
@@ -155,6 +164,65 @@ describe("the symbol search", () => {
     expect(onPick).toHaveBeenLastCalledWith("re");
   });
 
+  it("opens a list to browse before anything is typed", async () => {
+    // The point of the change: someone who does not know the symbol can open
+    // the field and look, rather than having to guess at letters first.
+    const { user } = renderApp(<Harness currency="INR" />);
+
+    await user.click(screen.getByRole("button", { name: "Show instruments" }));
+
+    expect(await screen.findByRole("option", { name: /RELIANCE\.NS/ })).toBeInTheDocument();
+    expect(screen.getByRole("listbox", { name: "Instruments to choose from" })).toBeVisible();
+  });
+
+  it("says what the browse list is ordered by", async () => {
+    // Size is not a recommendation, and a list of the biggest companies with no
+    // caption reads like one.
+    const { user } = renderApp(<Harness currency="INR" />);
+
+    await user.click(screen.getByRole("button", { name: "Show instruments" }));
+    await screen.findByRole("option", { name: /RELIANCE\.NS/ });
+
+    expect(screen.getByText(/largest INR instruments, by market value/i)).toBeInTheDocument();
+  });
+
+  it("closes again when the control is pressed a second time", async () => {
+    const { user } = renderApp(<Harness />);
+
+    // No currency given, so the browse list is the dollar one.
+    await user.click(screen.getByRole("button", { name: "Show instruments" }));
+    await screen.findByRole("option", { name: /NVDA/ });
+    await user.click(screen.getByRole("button", { name: "Hide instruments" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("combobox")).toHaveAttribute("aria-expanded", "false"),
+    );
+  });
+
+  it("asks for nothing until the field is opened", async () => {
+    // A dialog with several of these should not fire a request each, for a list
+    // nobody has asked to see.
+    let requests = 0;
+    server.use(
+      http.get(`${API}/assets/search`, ({ request }) => {
+        requests += 1;
+        const wanted = new URL(request.url).searchParams.get("currency");
+        const items = wanted
+          ? RESULTS.items.filter((item) => item.currency === wanted)
+          : RESULTS.items;
+        return HttpResponse.json({ ...RESULTS, items });
+      }),
+      ...signedInHandlers,
+    );
+
+    const { user } = renderApp(<Harness />);
+    await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
+    expect(requests).toBe(0);
+
+    await user.click(screen.getByRole("button", { name: "Show instruments" }));
+    await waitFor(() => expect(requests).toBeGreaterThan(0));
+  });
+
   it("announces itself as a combobox that owns its list", async () => {
     const { user } = renderApp(<Harness />);
     const input = screen.getByRole("combobox");
@@ -176,6 +244,7 @@ describe("the symbol search", () => {
       ),
       ...signedInHandlers,
     );
+
     const { user } = renderApp(<Harness />);
 
     await user.type(screen.getByRole("combobox"), "zzz");

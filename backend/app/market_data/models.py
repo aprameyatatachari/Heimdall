@@ -32,6 +32,7 @@ class PriceSource(StrEnum):
     """
 
     FIXTURE = "fixture"
+    YAHOO = "yahoo"
     STOOQ = "stooq"
     MANUAL = "manual"
 

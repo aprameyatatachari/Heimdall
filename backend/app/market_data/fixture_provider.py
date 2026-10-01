@@ -144,6 +144,31 @@ class FixtureMarketDataProvider(MarketDataProvider):
         matches.sort(key=lambda item: (item.symbol.lower() != needle, item.symbol))
         return matches[:limit]
 
+    async def list_popular(self, *, currency: str, limit: int = 20) -> list[AssetSearchResult]:
+        """Every fixture instrument priced in `currency`.
+
+        The committed catalogue is small enough that "popular" and "all" are the
+        same list. Ordered by symbol, because any other ordering here would
+        imply a ranking the fixtures cannot support.
+        """
+        wanted = currency.strip().upper()
+        metadata = _load_metadata(self._root)
+
+        matches = [
+            AssetSearchResult(
+                symbol=symbol,
+                name=entry.name if entry else None,
+                asset_type=entry.asset_type if entry else AssetType.UNKNOWN,
+                exchange=entry.exchange if entry else None,
+                currency=entry.currency if entry else "USD",
+            )
+            for symbol in self.available_symbols()
+            for entry in [metadata.get(symbol)]
+            if (entry.currency if entry else "USD") == wanted
+        ]
+        matches.sort(key=lambda item: item.symbol)
+        return matches[:limit]
+
     async def get_asset_metadata(self, symbol: str) -> AssetMetadata:
         """Return fixture metadata for one symbol."""
         normalized = symbol.strip().upper()

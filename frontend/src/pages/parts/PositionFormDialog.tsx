@@ -136,7 +136,7 @@ export function PositionFormDialog({
           hint={
             editing
               ? "The instrument cannot be changed. Remove the holding and add another instead."
-              : `Start typing to search the catalogue. This portfolio holds ${currency} instruments.`
+              : `Open the list to browse, or type to search. This portfolio holds ${currency} instruments.`
           }
         />
 

@@ -10,7 +10,11 @@ param(
     [int] $ApiPort = 8000,
     [int] $WebPort = 5173,
     # Skip the database container and migrations, for when they are already up.
-    [switch] $NoDatabase
+    [switch] $NoDatabase,
+    # Use the committed offline price series instead of Yahoo Finance. For
+    # working without a network, or when a figure has to be reproducible
+    # between two runs.
+    [switch] $Fixtures
 )
 
 # Native tools here write progress to stderr. PowerShell turns redirected
@@ -107,10 +111,19 @@ if (-not (Test-Path (Join-Path $frontend "node_modules"))) {
 # Separate windows, titled so stop.ps1 and a human can both find them.
 Write-Step "Starting services"
 
+# Live prices unless backend/.env says otherwise. `-Fixtures` forces the
+# committed offline series.
+$providerPrefix = if ($Fixtures) { "set MARKET_DATA_PROVIDER=fixture && " } else { "" }
+
 Start-Process -FilePath "cmd.exe" -ArgumentList @(
-    "/k", "title Heimdall API && cd /d `"$root\backend`" && uv run uvicorn app.main:app --host 127.0.0.1 --port $ApiPort --reload"
+    "/k", "title Heimdall API && cd /d `"$root\backend`" && $providerPrefix" + "uv run uvicorn app.main:app --host 127.0.0.1 --port $ApiPort --reload"
 )
 Write-Ok "API starting on http://127.0.0.1:$ApiPort"
+if ($Fixtures) {
+    Write-Ok "Market data: committed fixtures"
+} else {
+    Write-Ok "Market data: Yahoo Finance, unless backend/.env overrides it"
+}
 
 Start-Process -FilePath "cmd.exe" -ArgumentList @(
     "/k", "title Heimdall Web && cd /d `"$root\frontend`" && npm run dev"

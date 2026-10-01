@@ -45,8 +45,9 @@ What exists today:
   ownership authorization enforced as a query predicate.
 - **CSV import** — full-file validation with row-and-column error reporting, and
   merge, replace, or reject modes. A rejected file changes nothing.
-- **Market data** — a vendor-neutral provider interface, an offline fixture
-  provider, local caching with gap detection, and idempotent ingestion.
+- **Market data** — a vendor-neutral provider interface with two adapters, live
+  Yahoo Finance and committed offline fixtures, plus local caching with gap
+  detection and idempotent ingestion.
 - **Analytics** — returns, volatility, Sharpe ratio, drawdown, historical and
   parametric VaR, Expected Shortfall, correlation, risk attribution, and benchmark
   comparison, validated against an independently computed golden portfolio.
@@ -334,8 +335,11 @@ Stated plainly, because a risk tool that hides its own limits is not much use.
   a rupee instrument in a dollar portfolio is rejected rather than silently
   combined. Adding a currency means adding instruments the provider can price in
   it, not just widening a list.
-- **Market data is synthetic.** The committed fixtures are shaped to resemble real
-  equity behaviour but are generated, not real. See
+- **Market data comes from Yahoo Finance**, which is not an official API: it is
+  unversioned, rate-limits without documenting it, and can change shape without
+  notice. The committed fixtures remain the offline alternative and are
+  **synthetic** — shaped to resemble real equity behaviour, but generated. The
+  test suite always uses them, so no test depends on a third party. See
   [market-data.md](docs/market-data.md).
 - **Weekday trading calendar.** Exchange holidays are not modelled.
 - **Equities and ETFs only.** No bond, option, or futures modelling, so a price

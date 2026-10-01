@@ -111,9 +111,50 @@ The first time market data is requested for it, the provider's metadata fills in
 its name, type, exchange, sector, and industry. A provider that does not recognise
 a stored symbol leaves the record alone rather than discarding a user's holding.
 
-## The fixture provider
+## The providers
 
-The only provider implemented. It reads committed CSV files from
+Two, chosen by `MARKET_DATA_PROVIDER`:
+
+| | `yahoo` | `fixture` |
+| --- | --- | --- |
+| Source | Yahoo Finance | committed CSV files |
+| Prices | live, including today's bar while a market is open | 2007-01-01 to 2024-12-31 |
+| Instruments | everything Yahoo lists on a mapped exchange | fourteen |
+| Needs a network | yes | no |
+| Used by the test suite | never | always |
+
+`yahoo` is the default for local development and deployment; `fixture` is the
+default in configuration, so a process started with no environment at all runs
+offline rather than reaching for a third party.
+
+### The Yahoo adapter
+
+Nothing about `yfinance` leaves `app/market_data/yahoo_provider.py`. Three things
+it has to get right:
+
+- **Threads.** `yfinance` is synchronous and does network I/O. Called directly
+  from a handler it would block the event loop for every other request in the
+  process, so every call goes through `asyncio.to_thread` with a deadline.
+- **Dates.** Yahoo indexes daily bars by a timestamp in the *exchange's*
+  timezone. An NSE bar for the 1st is `2026-10-01 00:00:00+05:30`; converting
+  that to UTC moves it to the 30th of September, and every Indian price lands
+  under the previous day. The local date is taken as-is.
+- **Decimals.** Prices arrive as float64 and are rendered through `repr` before
+  being parsed as `Decimal`, so what is stored is the shortest decimal that
+  round-trips the float rather than its binary expansion.
+
+Yahoo is not an official API: unversioned, rate-limited without documenting it,
+and free to change shape. Its search results carry no currency, so the adapter
+maps Yahoo's exchange codes to one and **drops any exchange it cannot map** —
+offering an instrument whose currency is unknown would offer a holding the API
+refuses on arrival.
+
+Every bar it writes is stored with `source = "yahoo"`, so live data and fixture
+data can never be mistaken for one another in the same database.
+
+### The fixture provider
+
+Reads committed CSV files from
 `fixtures/market_data/`, so **every test and local development run is hermetic** —
 no network, no third-party uptime, no API key.
 
@@ -194,6 +235,7 @@ on every bar, and the configuration switch all exist for that reason.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/v1/assets/search?query=` | Search instruments through the provider |
+| GET | `/api/v1/assets/search?currency=` | Browse the largest instruments in a market |
 | GET | `/api/v1/assets/{symbol}/prices` | Daily bars, fetching missing days first |
 | POST | `/api/v1/portfolios/{id}/market-data/refresh` | Refresh every holding |
 

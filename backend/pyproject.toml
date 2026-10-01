@@ -22,6 +22,7 @@ dependencies = [
     "pandas>=2.2.0",
     "scipy>=1.14.0",
     "reportlab>=4.2.0",
+    "yfinance>=1.7.0",
 ]
 
 [project.optional-dependencies]
@@ -89,6 +90,13 @@ ignore_missing_imports = true
 # which wraps it behind typed dataclasses.
 [[tool.mypy.overrides]]
 module = ["reportlab.*"]
+ignore_missing_imports = true
+
+# yfinance ships no type stubs either, and returns pandas frames and untyped
+# dictionaries. It is imported only inside app/market_data/yahoo_provider.py,
+# which translates all of it into the typed domain objects in provider.py.
+[[tool.mypy.overrides]]
+module = ["yfinance.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -149,8 +149,22 @@ test("a new visitor can register, build a portfolio, analyse it and report on it
       .selectOption({ label: "COVID-19 crash" });
     await page.getByRole("button", { name: /run this scenario/i }).click();
 
+    // A historical scenario replays its own window, and a portfolio priced only
+    // over recent months has nothing stored for 2020. The screen offers to fetch
+    // exactly that period rather than leaving a dead end with instructions.
+    // `waitFor`, not `isVisible`: the latter resolves immediately against the
+    // current DOM, and the alert this button sits in takes a moment to arrive.
+    const fetchAndRun = page.getByRole("button", { name: /fetch prices for this period/i });
+    const needsPrices = await fetchAndRun
+      .waitFor({ state: "visible", timeout: 30_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (needsPrices) {
+      await fetchAndRun.click();
+    }
+
     await expect(page.getByText("Estimated impact", { exact: false }).first()).toBeVisible({
-      timeout: 90_000,
+      timeout: 120_000,
     });
     await expect(page.getByText(/every holding the scenario covers/i)).toBeVisible();
   });

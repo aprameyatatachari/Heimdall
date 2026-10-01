@@ -1,7 +1,8 @@
 import { useState } from "react";
 
 import type { ScenarioCatalogueItem, ShockTargetType, StressTestRequest } from "@/api/stress";
-import type { HoldingSummary } from "@/api/portfolios";
+import { useRefreshMarketData, type HoldingSummary } from "@/api/portfolios";
+import { ApiError } from "@/api/errors";
 import { Alert } from "@/components/Alert";
 import { Button } from "@/components/Button";
 import { Field } from "@/components/Field";
@@ -50,6 +51,7 @@ function parsePercent(value: string): number | null {
  * is the difference between a tool and a trap. AGENTS.md section 6.8.
  */
 export function ScenarioBuilder({
+  portfolioId,
   scenarios,
   limitations,
   holdings,
@@ -58,6 +60,7 @@ export function ScenarioBuilder({
   error,
   onRun,
 }: {
+  portfolioId: string;
   scenarios: ScenarioCatalogueItem[];
   limitations: string[];
   holdings: HoldingSummary[];
@@ -74,6 +77,19 @@ export function ScenarioBuilder({
   const [shocks, setShocks] = useState<DraftShock[]>([emptyShock("portfolio")]);
 
   const chosen = scenarios.find((item) => item.key === scenarioKey);
+  const fetchPrices = useRefreshMarketData(portfolioId);
+
+  // The one failure with an obvious next step: a historical scenario's own
+  // window has no stored prices. Saying "refresh and try again" and leaving
+  // someone to work out which dates is a dead end with instructions attached.
+  //
+  // Historical only. A custom scenario has no window of its own to fetch, and
+  // offering the catalogue's would be offering to fix a scenario the user is
+  // not running.
+  const missingData =
+    mode === "historical" &&
+    error instanceof ApiError &&
+    error.code === "scenario_data_unavailable";
 
   const parsed: Shock[] = shocks.flatMap((shock) => {
     const value = parsePercent(shock.percent);
@@ -285,10 +301,36 @@ export function ScenarioBuilder({
         </div>
       )}
 
-      {error !== null && error !== undefined && (
-        <Alert title="The scenario could not be run">
-          {error instanceof Error ? error.message : "Something went wrong."}
+      {missingData && chosen ? (
+        <Alert tone="caution" title="This scenario's prices are not stored yet">
+          <p>
+            A historical scenario replays the returns observed in its own window, and this
+            portfolio has no prices covering {formatDate(chosen.start)} to{" "}
+            {formatDate(chosen.end)}. Fetching them is one step, and then the scenario can run.
+          </p>
+          <Button
+            size="sm"
+            className="mt-3"
+            loading={fetchPrices.isPending}
+            onClick={() =>
+              fetchPrices.mutate(
+                { start: chosen.start, end: chosen.end },
+                // Run it straight away: being sent back to press the same
+                // button again would be a second step for no decision.
+                { onSuccess: () => onRun({ scenario_key: chosen.key }) },
+              )
+            }
+          >
+            Fetch prices for this period and run
+          </Button>
         </Alert>
+      ) : (
+        error !== null &&
+        error !== undefined && (
+          <Alert title="The scenario could not be run">
+            {error instanceof Error ? error.message : "Something went wrong."}
+          </Alert>
+        )
       )}
 
       <div>

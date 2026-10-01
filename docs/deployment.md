@@ -98,8 +98,8 @@ public the moment it is deployed.
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `MARKET_DATA_PROVIDER` | `fixture` | Only the offline provider exists today |
-| `MARKET_DATA_API_KEY` | unset | For a provider that needs one |
+| `MARKET_DATA_PROVIDER` | `fixture` | **Set `yahoo` in production**; `fixture` serves committed offline series |
+| `MARKET_DATA_API_KEY` | unset | Unused by Yahoo, which needs no key |
 | `MONITORING_BATCH_SIZE` | `25` | Portfolios per scheduled invocation |
 | `RATE_LIMIT_ENABLED` | `true` | Per-instance; see `docs/security.md` |
 | `VITE_API_BASE_URL` | unset | Only for the split layout |
@@ -196,6 +196,24 @@ unsetting the secret is the faster. Neither loses data: monitoring records
 state, it does not own it.
 
 ---
+
+## 6a. Market data in production
+
+Set `MARKET_DATA_PROVIDER=yahoo`. It needs no key.
+
+Two things to watch on a serverless platform:
+
+- **Cold starts carry pandas.** The Yahoo adapter imports `yfinance`, which
+  imports pandas and numpy. The import is deferred until the provider is first
+  built, so a request that never touches market data does not pay for it, but
+  the first one that does will be slower.
+- **Yahoo rate-limits without documenting it.** Every bar is cached in
+  PostgreSQL after the first fetch, so a busy portfolio hits the provider once
+  per symbol per day rather than once per view. A refresh that fails is reported
+  per symbol and does not abort the others.
+
+Falling back to `fixture` is always available and needs no network at all, but
+its series end in 2024 and are synthetic — never present them as live prices.
 
 ## 7. Reports
 

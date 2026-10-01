@@ -25,7 +25,13 @@ def _build_provider(name: str, fixture_root: str | None) -> MarketDataProvider:
     """Build and cache the configured provider."""
     if name == "fixture":
         return FixtureMarketDataProvider(Path(fixture_root) if fixture_root else None)
-    raise ValueError(f"Unknown market-data provider {name!r}. Supported providers: fixture.")
+    if name == "yahoo":
+        # Imported here rather than at module scope: nothing that runs against
+        # fixtures should pay for loading pandas and a vendor client.
+        from app.market_data.yahoo_provider import YahooMarketDataProvider
+
+        return YahooMarketDataProvider()
+    raise ValueError(f"Unknown market-data provider {name!r}. Supported providers: fixture, yahoo.")
 
 
 def get_market_data_provider(settings: SettingsDep) -> MarketDataProvider:

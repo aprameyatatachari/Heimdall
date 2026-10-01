@@ -272,8 +272,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Search instruments
-         * @description Searches the configured market-data source for instruments by symbol or name. Results come from the data source, not from Heimdall's own records.
+         * Search or browse instruments
+         * @description Searches the configured market-data source for instruments by symbol or name. Results come from the data source, not from Heimdall's own records. With no `query`, returns the largest instruments in the market that uses `currency` - a starting point for browsing, ordered by size, which is not a recommendation. With a `query`, `currency` filters the matches.
          */
         get: operations["search_assets_api_v1_assets_search_get"];
         put?: never;
@@ -4035,9 +4035,11 @@ export interface operations {
     };
     search_assets_api_v1_assets_search_get: {
         parameters: {
-            query: {
-                /** @description Symbol or name fragment. */
-                query: string;
+            query?: {
+                /** @description Symbol or name fragment. Omit to browse the largest instruments instead. */
+                query?: string | null;
+                /** @description Restrict results to instruments priced in this currency. */
+                currency?: string | null;
                 limit?: number;
             };
             header?: never;

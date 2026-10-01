@@ -79,6 +79,17 @@ class MarketDataProvider(ABC):
     async def search_assets(self, query: str, *, limit: int = 10) -> list[AssetSearchResult]:
         """Find instruments whose symbol or name matches `query`."""
 
+    async def list_popular(self, *, currency: str, limit: int = 20) -> list[AssetSearchResult]:
+        """Instruments to offer before anything has been typed.
+
+        Not abstract: a provider with no notion of "popular" can leave this
+        alone and the field simply opens empty. Implementations return the
+        largest or most-traded instruments priced in `currency`, which is a
+        starting point for browsing, never a recommendation.
+        """
+        del currency, limit
+        return []
+
     @abstractmethod
     async def get_asset_metadata(self, symbol: str) -> AssetMetadata:
         """Return reference data for one instrument.

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 
-import { useAssetSearch } from "@/api/portfolios";
+import { usePopularAssets, useAssetSearch } from "@/api/portfolios";
 import { useDebounced } from "@/hooks/useDebounced";
 import { cx } from "@/lib/cx";
 
@@ -52,19 +52,26 @@ export function SymbolSearch({
   const inputId = useId();
   const listId = useId();
   const [open, setOpen] = useState(false);
+  const [touched, setTouched] = useState(false);
   const [highlighted, setHighlighted] = useState(-1);
   // Set while an option is being chosen, so the re-render that follows does not
   // immediately reopen the list on the new value.
   const justChose = useRef(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const query = useDebounced(value, 250);
-  const search = useAssetSearch(disabled ? "" : query);
+  const searching = !disabled && query.trim().length >= 2;
 
-  const items = (search.data?.items ?? []).filter(
-    (item) => !currency || item.currency === currency,
-  );
+  const search = useAssetSearch(disabled ? "" : query, currency);
+  // Fetched when the field is first opened, not on mount: a dialog that opens
+  // six of these should not make six requests nobody asked for.
+  const popular = usePopularAssets(currency ?? "USD", !disabled && (open || touched));
+
+  const items = searching ? (search.data?.items ?? []) : (popular.data?.items ?? []);
+  const browsing = !searching;
   const showList = open && !disabled && items.length > 0;
+  const loading = searching ? search.isFetching : popular.isFetching;
   const describedBy = error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined;
 
   // A click anywhere else is a dismissal. Pointerdown rather than click, so the
@@ -155,6 +162,7 @@ export function SymbolSearch({
       >
         <input
           id={inputId}
+          ref={inputRef}
           role="combobox"
           aria-expanded={showList}
           aria-controls={listId}
@@ -174,16 +182,50 @@ export function SymbolSearch({
             onChange(event.target.value);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            setTouched(true);
+            setOpen(true);
+          }}
           onKeyDown={onKeyDown}
           className="text-ink placeholder:text-ink-faint h-10 w-full bg-transparent text-base outline-none disabled:opacity-60"
         />
-        {search.isFetching && !disabled && (
+        {loading && (
           <span className="text-ink-dim text-xs" role="status">
             <span className="sr-only">Searching the instrument catalogue</span>
             <span aria-hidden="true">…</span>
           </span>
         )}
+        {/* The affordance that makes this a dropdown rather than a field that
+            happens to suggest things. Someone who does not know what to type
+            can open it and look. */}
+        <button
+          type="button"
+          tabIndex={-1}
+          disabled={disabled}
+          aria-label={showList ? "Hide instruments" : "Show instruments"}
+          aria-expanded={showList}
+          aria-controls={listId}
+          onPointerDown={(event) => {
+            // Before focus, so clicking the chevron while the list is open
+            // closes it rather than closing and immediately reopening.
+            event.preventDefault();
+            setTouched(true);
+            setOpen((isOpen) => !isOpen);
+            inputRef.current?.focus();
+          }}
+          className="text-ink-dim hover:text-ink -me-1 flex size-8 shrink-0 items-center justify-center rounded-sm transition-colors disabled:opacity-40"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4">
+            <path
+              d={showList ? "M7 14.5 12 9.5 17 14.5" : "M7 9.5 12 14.5 17 9.5"}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
       </div>
 
       {/* Always rendered so a screen reader can find it by id; emptied rather
@@ -191,12 +233,21 @@ export function SymbolSearch({
       <ul
         id={listId}
         role="listbox"
-        aria-label="Matching instruments"
+        aria-label={browsing ? "Instruments to choose from" : "Matching instruments"}
         className={cx(
           "border-line-strong bg-surface absolute top-full z-30 mt-1 max-h-64 w-full overflow-auto rounded-md border shadow-lg",
           showList ? "block" : "hidden",
         )}
       >
+        {browsing && (
+          <li
+            aria-hidden="true"
+            className="border-line-soft text-ink-dim bg-surface-2 sticky top-0 border-b px-3 py-2 text-xs"
+          >
+            The largest {currency ? `${currency} ` : ""}instruments, by market value. Type to
+            search for any other.
+          </li>
+        )}
         {items.map((item, index) => (
           <li
             key={item.symbol}

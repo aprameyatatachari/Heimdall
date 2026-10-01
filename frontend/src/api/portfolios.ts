@@ -38,7 +38,9 @@ export const portfolioKeys = {
   detail: (id: string) => ["portfolios", "detail", id] as const,
   summary: (id: string) => ["portfolios", "summary", id] as const,
   positions: (id: string) => ["portfolios", "positions", id] as const,
-  assetSearch: (query: string) => ["assets", "search", query] as const,
+  assetSearch: (query: string, currency?: string) =>
+    ["assets", "search", query, currency ?? "any"] as const,
+  popularAssets: (currency: string) => ["assets", "popular", currency] as const,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -84,15 +86,37 @@ export function usePositions(id: string) {
  */
 export function useAssetSearch(
   query: string,
+  currency?: string,
   options?: Partial<UseQueryOptions<AssetSearchResponse>>,
 ) {
   return useQuery({
-    queryKey: portfolioKeys.assetSearch(query),
+    queryKey: portfolioKeys.assetSearch(query, currency),
     queryFn: () =>
-      api.get<AssetSearchResponse>("/assets/search", { params: { query, limit: 10 } }),
+      api.get<AssetSearchResponse>("/assets/search", {
+        params: { query, currency, limit: 12 },
+      }),
     enabled: query.trim().length >= 2,
     staleTime: 5 * 60_000,
     ...options,
+  });
+}
+
+/**
+ * Instruments to offer before anything has been typed.
+ *
+ * The same endpoint with no query. Ordered by size, which is what makes it a
+ * place to start browsing and not a recommendation — the screen says so.
+ * Cached for an hour: the largest companies in a market do not reshuffle
+ * between one dropdown and the next.
+ */
+export function usePopularAssets(currency: string, enabled = true) {
+  return useQuery({
+    queryKey: portfolioKeys.popularAssets(currency),
+    queryFn: () =>
+      api.get<AssetSearchResponse>("/assets/search", { params: { currency, limit: 20 } }),
+    enabled: enabled && Boolean(currency),
+    staleTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
   });
 }
 

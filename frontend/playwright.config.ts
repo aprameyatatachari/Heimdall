@@ -27,7 +27,10 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: Boolean(process.env["CI"]),
   retries: process.env["CI"] ? 1 : 0,
-  timeout: 90_000,
+  // Generous, because the journey fetches real prices from a real provider:
+  // a scenario's own window has to be fetched before it can be replayed, and a
+  // third party answers when it answers.
+  timeout: 240_000,
   expect: { timeout: 15_000 },
   reporter: process.env["CI"] ? [["github"], ["html", { open: "never" }]] : [["list"]],
   use: {

@@ -165,6 +165,31 @@ describe("before a scenario runs", () => {
     expect(screen.getByRole("button", { name: "Run this scenario" })).toBeDisabled();
   });
 
+  it("offers to fetch a historical scenario's own prices rather than refusing", async () => {
+    server.use(
+      http.post(`${API}/portfolios/${PORTFOLIO_ID}/stress-tests`, () =>
+        HttpResponse.json(
+          errorBody({
+            code: "scenario_data_unavailable",
+            message: "No holding has stored price data covering this scenario's date range.",
+          }),
+          { status: 422 },
+        ),
+      ),
+    );
+    const { user } = renderApp(<AppRoutes />, { route: ROUTE });
+
+    await user.click(await screen.findByRole("button", { name: /run this scenario/i }));
+
+    // The dead end this replaced: "refresh market data for the scenario period
+    // and try again", with nothing on screen saying which period that is.
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/Feb 19, 2020 to Mar 23, 2020/);
+    expect(
+      screen.getByRole("button", { name: /fetch prices for this period/i }),
+    ).toBeInTheDocument();
+  });
+
   it("keeps the scenario the user typed when the run fails", async () => {
     server.use(
       http.post(`${API}/portfolios/${PORTFOLIO_ID}/stress-tests`, () =>
@@ -183,9 +208,14 @@ describe("before a scenario runs", () => {
     await user.type(screen.getByLabelText("Price change percent"), "-15");
     await user.click(screen.getByRole("button", { name: "Run this scenario" }));
 
+    // Custom mode has no window of its own to fetch, so the plain failure is
+    // what belongs here, not an offer to fetch the catalogue's.
     expect(
       await screen.findByText(/no price history covers this scenario window/i),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /fetch prices for this period/i }),
+    ).not.toBeInTheDocument();
     // The input survives the failure: re-typing a scenario because the server
     // said no is how people stop using a tool.
     expect(screen.getByLabelText("Price change percent")).toHaveValue("-15");
