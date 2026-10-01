@@ -34,19 +34,19 @@ These outrank every convenience.
 
 ## 2. Stack
 
-| Concern       | Choice                                                     |
-| ------------- | ---------------------------------------------------------- |
-| Framework     | React 18 + TypeScript (strict)                             |
-| Build         | Vite                                                       |
-| Styling       | Tailwind CSS, configured from `DESIGN.md` tokens           |
-| Routing       | React Router                                               |
-| Server state  | TanStack Query                                             |
-| Forms         | React Hook Form + Zod                                      |
+| Concern       | Choice                                                      |
+| ------------- | ----------------------------------------------------------- |
+| Framework     | React 18 + TypeScript (strict)                              |
+| Build         | Vite                                                        |
+| Styling       | Tailwind CSS, configured from `DESIGN.md` tokens            |
+| Routing       | React Router                                                |
+| Server state  | TanStack Query                                              |
+| Forms         | React Hook Form + Zod                                       |
 | Charts        | Hand-drawn SVG — see DESIGN.md 6.6 for why no library ships |
-| Smooth scroll | Lenis (Outer Realm only)                                   |
-| Animation     | GSAP + ScrollTrigger + SplitText (Outer Realm only)        |
-| Tests         | Vitest + React Testing Library + MSW                       |
-| Quality       | ESLint, Prettier, `tsc --noEmit`                           |
+| Smooth scroll | Lenis (Outer Realm only)                                    |
+| Animation     | GSAP + ScrollTrigger + SplitText (Outer Realm only)         |
+| Tests         | Vitest + React Testing Library + MSW                        |
+| Quality       | ESLint, Prettier, `tsc --noEmit`                            |
 
 Types are **generated from the live OpenAPI schema** (`/openapi.json`), not
 hand-written. Regenerating is part of the build, so a backend contract change
