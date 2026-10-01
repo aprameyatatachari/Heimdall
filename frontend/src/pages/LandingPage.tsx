@@ -103,7 +103,11 @@ export function LandingPage() {
         {/* Capabilities */}
         <section className="border-line border-t">
           <div className="mx-auto max-w-[1440px] px-4 py-24 md:px-8 lg:px-16">
-            <p className="hm-eyebrow mb-10">What Heimdall does</p>
+            {/* The eyebrow is styled type, not a heading. Without a real one
+                here the cards' h3s follow the hero's h1 directly, and anyone
+                navigating by heading level drops two rungs with nothing in
+                between. */}
+            <h2 className="hm-eyebrow mb-10">What Heimdall does</h2>
             <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
               {CAPABILITIES.map((capability, index) => (
                 <Capability key={capability.title} index={index} {...capability} />

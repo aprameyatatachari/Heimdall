@@ -140,6 +140,13 @@ test("a new visitor can register, build a portfolio, analyse it and report on it
     await tab(page, "Stress test").click();
 
     await expect(page.getByText(/an estimate of sensitivity, not a forecast/i)).toBeVisible();
+
+    // Chosen rather than left on the first entry: the committed fixtures do not
+    // reach back to 2008, so the catalogue's oldest scenario has no prices for
+    // these holdings and would correctly refuse to run.
+    await page
+      .getByLabel("Scenario", { exact: true })
+      .selectOption({ label: "COVID-19 crash" });
     await page.getByRole("button", { name: /run this scenario/i }).click();
 
     await expect(page.getByText("Estimated impact", { exact: false }).first()).toBeVisible({

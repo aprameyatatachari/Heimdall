@@ -32,9 +32,12 @@ Under active development, phase by phase.
 | 6 | Gjallarhorn Early Warning System backend | **Complete** |
 | 7 | Backend hardening and report generation | **Complete** |
 | 8-11 | Frontend | **Complete** |
-| 12 | Vercel deployment and final quality | Not started |
+| 12 | Vercel deployment and final quality | Configured, not yet deployed |
 
-The backend is feature-complete. The frontend begins at Phase 8.
+Backend and frontend are both feature-complete. Phase 12's configuration,
+pipeline and documentation are in place; **no deployment has been run against
+Vercel yet**, so treat the first one as a preview and work through
+[deployment.md](docs/deployment.md) section 8.
 
 What exists today:
 
@@ -56,8 +59,69 @@ What exists today:
 - **Hardening** — rate limiting, security headers, and container and dependency
   scanning in CI.
 
-There is **no frontend yet**. Everything above is reachable through the API and its
-interactive documentation.
+- **The application** — a React single-page application covering the whole of the
+  above: portfolios and holdings, the analytics dashboard, stress testing, the
+  Gjallarhorn signal interface, and report generation. Every metric carries its
+  unit and its basis, every chart carries the numbers behind it, and a figure
+  that could not be computed shows the reason rather than a zero.
+
+Everything is also reachable directly through the API and its interactive
+documentation.
+
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph browser["Browser"]
+        spa["React SPA<br/>routing, TanStack Query, in-memory access token"]
+    end
+
+    subgraph vercel["Vercel, one project"]
+        static["Static files<br/>frontend/dist"]
+        fn["Python function<br/>api/index.py → FastAPI"]
+        cron["Cron 06:00 UTC<br/>api/cron/monitoring.py"]
+    end
+
+    subgraph api["FastAPI, a modular monolith"]
+        direction LR
+        auth["auth"]
+        portfolios["portfolios"]
+        market["market_data"]
+        analytics["analytics"]
+        stress["stress_testing"]
+        ews["early_warning"]
+        reports["reports"]
+    end
+
+    db[("PostgreSQL<br/>Neon in production")]
+    fixtures[["fixtures/market_data<br/>committed price series"]]
+
+    spa -->|"/api/v1/*, same origin"| fn
+    spa --> static
+    cron -->|"shared secret"| fn
+    fn --> api
+    api --> db
+    market --> fixtures
+
+    portfolios --> analytics
+    market --> analytics
+    analytics --> stress
+    analytics --> ews
+    stress --> ews
+    analytics --> reports
+    stress --> reports
+    ews --> reports
+```
+
+One FastAPI application split by business capability, not microservices. Each
+capability owns its router, service, repository, models and schemas; routes
+validate and authorize, services own use cases and transactions, repositories own
+queries, and financial calculations are pure functions with no HTTP, database or
+clock dependency. [architecture.md](docs/architecture.md) has the detail.
+
+The frontend and the API share an origin in production, which is what keeps the
+refresh cookie first-party. [deployment.md](docs/deployment.md) explains the
+choice.
 
 ## Technology
 
@@ -65,8 +129,12 @@ interactive documentation.
 Alembic, PostgreSQL 17, NumPy, pandas, SciPy, ReportLab, structlog, Argon2id,
 PyJWT. Tooling: uv, Ruff, mypy (strict), pytest, pip-audit.
 
-**Frontend** (from Phase 8) — React, TypeScript, Vite, Tailwind CSS, TanStack
-Query, React Router, Recharts, Vitest, Playwright.
+**Frontend** — React 18, TypeScript (strict), Vite 6, Tailwind CSS v4, TanStack
+Query, React Router, React Hook Form with Zod, Vitest with Testing Library and
+MSW, Playwright, ESLint and Prettier. Charts are hand-drawn SVG rather than a
+charting library: the table alternative has to read the same numbers the chart
+drew, a gap in the data has to stay a gap, and most libraries interpolate across
+one by default.
 
 **Infrastructure** — Docker and Docker Compose for local development, GitHub
 Actions for CI, Vercel plus managed PostgreSQL for production.
@@ -177,6 +245,56 @@ DATABASE_URL=postgresql+asyncpg://heimdall:heimdall@localhost:5433/heimdall_test
 RUN_INTEGRATION_TESTS=1 uv run pytest -m integration
 ```
 
+### The frontend's own checks
+
+Run from `frontend/`:
+
+```bash
+npm run format:check
+npm run lint
+npm run typecheck
+npm run test              # Vitest, against MSW handlers typed from the real schema
+npm run build
+```
+
+### The end-to-end journey
+
+Playwright drives a real browser against a **real API and a real database** —
+register, create a portfolio, add holdings, fetch prices, analyse, stress test,
+monitor, generate and download a report, sign out. It is the one suite that
+proves the contract rather than a fixture of it.
+
+```bash
+# once
+cd frontend && npm run e2e:install
+
+# with PostgreSQL up, migrations applied, and the API running
+cd backend && RATE_LIMIT_ENABLED=false uv run uvicorn app.main:app
+cd frontend && npm run e2e
+```
+
+Rate limiting is a production guard, not a property under test; left on, the
+journey trips it on its own speed.
+
+## Deployment
+
+Vercel, as a single project: the built application is served as static files and
+everything under `/api` is a Python function running the same FastAPI
+application that runs locally.
+
+```bash
+npm i -g vercel
+vercel link
+vercel          # preview
+vercel --prod   # production
+```
+
+**Read [deployment.md](docs/deployment.md) first.** It covers the layout decision
+and the fallback, every environment variable and which of them must never be
+`VITE_`-prefixed, Neon's pooled and direct endpoints and why migrations need the
+direct one, the migration workflow, the scheduled monitoring job and how to turn
+it off, the post-deployment checks, and rollback.
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)
@@ -190,14 +308,16 @@ RUN_INTEGRATION_TESTS=1 uv run pytest -m integration
 - [Reports](docs/reports.md)
 - [Security](docs/security.md)
 - [Environment variables](docs/environment.md)
+- [Deployment](docs/deployment.md)
 - [Contributor and agent guide](CLAUDE.md)
 
 ## Still to come
 
-- Frontend: authentication, portfolio management, analytics dashboard, stress
-  testing, reports, and the Gjallarhorn signal interface (Phases 8-11)
-- Vercel deployment, a scheduled monitoring cron job, and end-to-end tests
-  (Phase 12)
+- A first deployment. Every piece of configuration is written and documented;
+  none of it has been exercised against a live Vercel build.
+- A real market-data provider. The interface is vendor-neutral and the only
+  implementation is the offline fixture provider.
+- Notification delivery for signals. The interface exists; no channel does.
 
 ## Limitations
 
@@ -229,9 +349,6 @@ Stated plainly, because a risk tool that hides its own limits is not much use.
 
 Heimdall does not execute trades, recommend buying, selling, or holding, or claim
 to predict future returns.
-- Analytics are estimates derived from historical data and stated model
-  assumptions.
-- Heimdall does not execute trades, make recommendations, or predict returns.
 
 ## License
 

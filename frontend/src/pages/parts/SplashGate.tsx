@@ -248,7 +248,8 @@ export function SplashGate({ onEntered }: { onEntered: () => void }) {
 
       {/* Everything above the photograph fades before the plate does, so the
           type is gone by the time the mist takes the frame. */}
-      <div
+      <section
+        aria-label="Welcome to Heimdall"
         className="gate-content relative flex h-full flex-col px-5 py-6 md:px-10 md:py-8"
         style={{
           paddingTop: "max(1.5rem, env(safe-area-inset-top))",
@@ -309,7 +310,7 @@ export function SplashGate({ onEntered }: { onEntered: () => void }) {
             </span>
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
