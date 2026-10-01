@@ -211,7 +211,13 @@ outgrow a database column.
 
 ## 8. Deploying
 
-The pipeline is `.github/workflows/deploy.yml`. In order:
+The pipeline is `.github/workflows/deploy.yml`. It is **manual** —
+`workflow_dispatch` — until the Vercel project exists and the production
+environment holds its secrets; the file says where to add the push trigger back.
+The first deployment of anything should be a decision rather than a side effect
+of a push.
+
+In order:
 
 1. Backend: format check, lint, strict type check, unit tests.
 2. Frontend: format check, lint, type check, unit tests, production build.

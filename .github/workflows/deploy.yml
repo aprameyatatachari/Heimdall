@@ -19,9 +19,15 @@ name: Deploy
 # Rollback is in docs/deployment.md section 9. It is deliberately a human step:
 # an automatic `alembic downgrade` in a failure path is a data-loss button.
 
+# Manual until the Vercel project exists. Pushing to main would otherwise fail
+# at `migrate` on every commit, because none of the secrets below are set yet —
+# and the first deployment of anything should be a decision, not a side effect
+# of a push. Once the project is linked and the production environment holds its
+# secrets, add back:
+#
+#   push:
+#     branches: [main]
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
