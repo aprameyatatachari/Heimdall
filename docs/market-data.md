@@ -238,6 +238,7 @@ on every bar, and the configuration switch all exist for that reason.
 | GET | `/api/v1/assets/search?currency=` | Browse the largest instruments in a market |
 | GET | `/api/v1/assets/{symbol}/prices` | Daily bars, fetching missing days first |
 | POST | `/api/v1/portfolios/{id}/market-data/refresh` | Refresh every holding |
+| GET | `/api/v1/portfolios/{id}/market-data/coverage` | Stored price coverage of a window |
 
 A refresh reports per asset: whether it was already up to date, how many ranges
 were fetched, how many observations arrived, how many bars were written, how many
@@ -246,6 +247,38 @@ trading days.
 
 **One unavailable symbol does not abort the refresh.** Failures are collected under
 `failures` and the remaining assets still update.
+
+### Freshness
+
+Two different facts describe how current a price is, and both are stored:
+
+- `date` — which trading session the bar belongs to.
+- `fetched_at` — when that bar was last read from the provider, to the second.
+
+A live provider revises today's bar until the close. Gap detection alone treats
+it as done the moment it exists, so a price read at the open would be shown all
+day as current. A portfolio refresh therefore **re-reads the newest bar** when it
+is recent enough to still be changing (within `LIVE_BAR_DAYS`), and leaves older
+bars alone: a close from last year is final, and re-reading it would be a request
+for an answer already held. Analysis runs never re-read; only an explicit refresh
+does.
+
+`quick=true` is the page-load variant: the last seven days only, and no
+re-reading of instrument metadata for an asset already described.
+
+The summary reports `latest_price_fetched_at` per holding and
+`prices_fetched_at` for the portfolio. The portfolio figure is the **oldest**
+fetch among the priced holdings, so it is true of every price on screen rather
+than only the freshest.
+
+### Coverage
+
+`GET /portfolios/{id}/market-data/coverage?start=&end=` reports, per holding,
+whether stored prices cover a window: `full`, `partial` (they start late or stop
+early by more than five trading days), or `none`. It fetches nothing. It exists
+so a screen can warn that a holding has no prices for a period *before* an
+analysis or a scenario is run over it — afterwards, the charts are already drawn
+from whichever holdings were covered, and look complete.
 
 **`data_as_of` is the date the data reaches, not the date that was asked for.**
 Those are different facts and the response carries both: `requested_end` is the

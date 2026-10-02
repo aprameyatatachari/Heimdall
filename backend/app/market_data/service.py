@@ -48,6 +48,10 @@ HOLIDAY_TOLERANCE_DAYS = 1
 # Ingestion never asks for a window longer than this in one provider call.
 MAX_INGEST_WINDOW_DAYS = 365 * 25
 
+# How recent the newest stored bar must be for a refresh to read it again. Within
+# this many days it may be today's, or the last session before a long weekend.
+LIVE_BAR_DAYS = 4
+
 # Default history fetched when a caller does not specify a start date.
 DEFAULT_HISTORY_DAYS = 365 * 3
 
@@ -261,8 +265,20 @@ class MarketDataService:
         )
         return asset, bars
 
-    async def ingest(self, *, asset: Asset, window: DateRange) -> IngestResult:
-        """Fill in any missing bars for one asset inside a window."""
+    async def ingest(
+        self,
+        *,
+        asset: Asset,
+        window: DateRange,
+        refresh_latest: bool = False,
+    ) -> IngestResult:
+        """Fill in any missing bars for one asset inside a window.
+
+        With `refresh_latest`, the newest stored bar is read again even though it
+        is not missing. Gap detection alone treats today's bar as done the moment
+        it exists, but a live provider keeps revising it until the close, so a
+        price fetched at the open would otherwise be shown all day as current.
+        """
         stored = await self._price_bars.stored_dates(
             asset.id,
             start=window.start,
@@ -274,6 +290,19 @@ class MarketDataService:
             stored_dates=stored,
             tolerance_days=HOLIDAY_TOLERANCE_DAYS,
         )
+
+        if refresh_latest and stored:
+            newest = max(stored)
+            today = self._clock.now().date()
+            # Only a bar that can still change. A close from last year is final,
+            # and re-reading it on every refresh of a historical window would be
+            # a request for an answer already held. A few days rather than one,
+            # so the last session before a weekend or a holiday still counts.
+            still_live = window.end >= today and (today - newest).days <= LIVE_BAR_DAYS
+            # And only when nothing already scheduled covers it.
+            covered = any(item.start <= newest <= item.end for item in missing)
+            if still_live and not covered:
+                missing = [*missing, DateRange(newest, window.end)]
 
         received = 0
         written = 0
@@ -327,6 +356,7 @@ class MarketDataService:
         *,
         start: date | None = None,
         end: date | None = None,
+        refresh_latest: bool = False,
     ) -> RefreshSummary:
         """Refresh several assets, recording per-asset failures without aborting.
 
@@ -338,7 +368,9 @@ class MarketDataService:
 
         for asset in assets:
             try:
-                summary.results.append(await self.ingest(asset=asset, window=window))
+                summary.results.append(
+                    await self.ingest(asset=asset, window=window, refresh_latest=refresh_latest)
+                )
             except (ProviderError, ValidationError) as exc:
                 logger.warning(
                     "market_data_refresh_failed",
@@ -348,6 +380,20 @@ class MarketDataService:
                 summary.failures.append((asset.symbol, str(exc)))
 
         return summary
+
+    async def coverage(
+        self,
+        assets: list[Asset],
+        *,
+        window: DateRange,
+    ) -> dict[uuid.UUID, tuple[date, date, int]]:
+        """First date, last date and count of stored bars per asset in a window."""
+        return await self._price_bars.coverage(
+            [asset.id for asset in assets],
+            start=window.start,
+            end=window.end,
+            source=self.source,
+        )
 
     # --- Internals -----------------------------------------------------------
 
@@ -392,6 +438,10 @@ class MarketDataService:
         if not observations:
             return 0
 
+        # One instant for the whole batch, from the injected clock, so a fetch
+        # is one moment rather than a smear of them.
+        fetched_at = self._clock.now()
+
         rows = [
             {
                 "id": uuid.uuid4(),
@@ -405,6 +455,7 @@ class MarketDataService:
                 "volume": observation.volume,
                 "currency": asset.currency,
                 "source": self.source,
+                "fetched_at": fetched_at,
             }
             for observation in observations
         ]

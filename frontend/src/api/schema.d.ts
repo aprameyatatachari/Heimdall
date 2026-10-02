@@ -315,9 +315,29 @@ export interface paths {
         put?: never;
         /**
          * Refresh market data for a portfolio
-         * @description Fetches any missing daily bars for every holding in the portfolio. Repeating the call is safe: ingestion is idempotent, keyed by asset, date, and source. An asset that cannot be refreshed is reported under `failures` without preventing the others from updating.
+         * @description Fetches any missing daily bars for every holding in the portfolio, and re-reads the newest one, which a live provider keeps revising until the close. Repeating the call is safe: ingestion is idempotent, keyed by asset, date, and source. An asset that cannot be refreshed is reported under `failures` without preventing the others from updating. `quick=true` limits the work to the last few days and skips instrument metadata, which is what a page load wants.
          */
         post: operations["refresh_portfolio_market_data_api_v1_portfolios__portfolio_id__market_data_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portfolios/{portfolio_id}/market-data/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stored price coverage of a window
+         * @description Reports, for every holding, how much of a date window its stored prices cover. Fetches nothing. It exists so a screen can say which holdings have no prices for a period before an analysis or a scenario is run over it, rather than after.
+         */
+        get: operations["get_price_coverage_api_v1_portfolios__portfolio_id__market_data_coverage_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1183,6 +1203,39 @@ export interface components {
             mode: components["schemas"]["ImportMode"];
         };
         /**
+         * CoverageResponse
+         * @description Stored price coverage of a window, for every holding in a portfolio.
+         *
+         *     Read-only: it reports what is stored and fetches nothing, so it is safe to
+         *     call before deciding whether to fetch.
+         */
+        CoverageResponse: {
+            /**
+             * Portfolio Id
+             * Format: uuid
+             */
+            portfolio_id: string;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Source */
+            source: string;
+            /**
+             * Complete
+             * @description True when every holding is fully covered.
+             */
+            complete: boolean;
+            /** Holdings */
+            holdings: components["schemas"]["HoldingCoverage"][];
+        };
+        /**
          * DataQualityNote
          * @description A problem found while ingesting provider data.
          */
@@ -1308,6 +1361,35 @@ export interface components {
             timestamp: string;
         };
         /**
+         * HoldingCoverage
+         * @description How much of a window one holding's stored prices cover.
+         */
+        HoldingCoverage: {
+            /** Symbol */
+            symbol: string;
+            /**
+             * Status
+             * @description `full` when stored prices span the window, `partial` when they start late or stop early, `none` when nothing is stored inside it.
+             */
+            status: string;
+            /** First Date */
+            first_date: string | null;
+            /** Last Date */
+            last_date: string | null;
+            /** Observations */
+            observations: number;
+            /**
+             * Expected Observations
+             * @description Expected trading days in the window, by the weekday calendar.
+             */
+            expected_observations: number;
+            /**
+             * Message
+             * @description Plain-language account of what is missing. Null when nothing is.
+             */
+            message?: string | null;
+        };
+        /**
          * HoldingSummaryResponse
          * @description One holding, valued at its latest stored price.
          */
@@ -1328,6 +1410,11 @@ export interface components {
             latest_price: string | null;
             /** Latest Price Date */
             latest_price_date: string | null;
+            /**
+             * Latest Price Fetched At
+             * @description When this price was last read from the provider, to the second. The price date says which trading day it belongs to; this says how old the reading is.
+             */
+            latest_price_fetched_at?: string | null;
             /** Market Value */
             market_value: string | null;
             /**
@@ -1457,6 +1544,12 @@ export interface components {
              * Format: date
              */
             requested_end: string;
+            /**
+             * Fetched At
+             * Format: date-time
+             * @description When this refresh read the provider, in UTC, to the second.
+             */
+            fetched_at: string;
             /** Assets Refreshed */
             assets_refreshed: number;
             /** Bars Written */
@@ -1824,6 +1917,11 @@ export interface components {
             benchmark_symbol: string | null;
             /** Data As Of */
             data_as_of: string | null;
+            /**
+             * Prices Fetched At
+             * @description The oldest fetch among the priced holdings: every price shown is at least this fresh. Null when nothing is priced.
+             */
+            prices_fetched_at?: string | null;
             /** Holdings Count */
             holdings_count: number;
             /** Priced Holdings Count */
@@ -4204,6 +4302,8 @@ export interface operations {
                 start?: string | null;
                 /** @description Inclusive end date. */
                 end?: string | null;
+                /** @description Only bring the newest prices up to date: a short recent window, and no re-reading of instrument metadata. What a page load or a refresh button wants, as opposed to building history. */
+                quick?: boolean;
             };
             header?: never;
             path: {
@@ -4221,6 +4321,88 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MarketDataRefreshResponse"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_price_coverage_api_v1_portfolios__portfolio_id__market_data_coverage_get: {
+        parameters: {
+            query: {
+                /** @description Inclusive start of the window. */
+                start: string;
+                /** @description Inclusive end of the window. */
+                end: string;
+            };
+            header?: never;
+            path: {
+                /** @description Portfolio identifier. */
+                portfolio_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoverageResponse"];
                 };
             };
             /** @description Bad request */

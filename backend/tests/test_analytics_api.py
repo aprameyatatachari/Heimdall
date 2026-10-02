@@ -368,6 +368,59 @@ async def test_the_benchmark_series_indexes_both_lines_to_the_same_start(api):
     assert len(points) > 2
 
 
+async def test_the_run_reports_downside_and_shape_measures(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("SPY", "10", "300"), ("AAPL", "20", "50")])
+
+    metrics = _metrics((await _run(api, headers, portfolio_id)).json())
+
+    for name in ("sortino_ratio", "downside_deviation", "calmar_ratio", "skewness"):
+        assert metrics[name]["value"] is not None, name
+    assert metrics["excess_kurtosis"]["value"] is not None
+    # Downside deviation counts only the shortfalls, so it cannot exceed volatility.
+    assert Decimal(metrics["downside_deviation"]["value"]) <= Decimal(
+        metrics["volatility_annualized"]["value"]
+    )
+
+
+async def test_the_best_and_worst_periods_carry_their_dates(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("SPY", "10", "300"), ("AAPL", "20", "50")])
+
+    metrics = _metrics((await _run(api, headers, portfolio_id)).json())
+
+    assert Decimal(metrics["best_period_return"]["value"]) > 0
+    assert Decimal(metrics["worst_period_return"]["value"]) < 0
+    assert metrics["best_period_return"]["metadata"]["date"]
+    assert metrics["worst_period_return"]["metadata"]["date"]
+
+
+async def test_beta_is_broken_down_by_holding(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(
+        api, headers, [("AAPL", "20", "50"), ("JNJ", "20", "60")], benchmark="SPY"
+    )
+
+    metrics = _metrics((await _run(api, headers, portfolio_id)).json())
+    assets = {item["symbol"]: item for item in metrics["benchmark_beta"]["metadata"]["assets"]}
+
+    assert set(assets) == {"AAPL", "JNJ"}
+    # The portfolio's beta is the weighted sum of its holdings' betas, which is
+    # what makes the breakdown worth showing.
+    weighted = sum(item["beta"] * item["weight"] for item in assets.values())
+    assert weighted == pytest.approx(float(Decimal(metrics["benchmark_beta"]["value"])), abs=1e-6)
+
+
+async def test_a_benchmark_adds_treynor_and_capture(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("AAPL", "20", "50")], benchmark="SPY")
+
+    metrics = _metrics((await _run(api, headers, portfolio_id)).json())
+
+    for name in ("treynor_ratio", "upside_capture", "downside_capture"):
+        assert name in metrics, name
+
+
 async def test_a_portfolio_without_a_benchmark_has_no_comparison_series(api):
     headers = await _signed_in_user(api)
     portfolio_id = await _portfolio(api, headers, [("AAPL", "20", "50")])

@@ -26,6 +26,7 @@ import {
 
 import {
   AllocationChart,
+  BetaChart,
   ComparisonChart,
   CorrelationChart,
   DrawdownChart,
@@ -119,6 +120,7 @@ export function PortfolioAnalyticsTab() {
               pending={create.isPending}
               error={create.error}
               onRun={runAnalysis}
+              portfolioId={portfolioId}
             />
           </Panel>
         )}
@@ -160,6 +162,7 @@ export function PortfolioAnalyticsTab() {
               pending={create.isPending}
               error={create.error}
               onRun={runAnalysis}
+              portfolioId={portfolioId}
             />
           </div>
         )}
@@ -265,6 +268,22 @@ export function PortfolioAnalyticsTab() {
             );
           })}
 
+          {/* Beta, alpha, Treynor and capture all measure against something.
+              Without a benchmark there is nothing to measure against, and the
+              whole section is absent — which reads as "this tool has no beta"
+              unless the screen says why. */}
+          {run.data.status !== "failed" && !results["benchmark_beta"] && (
+            <Panel>
+              <h2 className="font-display text-ink text-lg font-light">Benchmark</h2>
+              <p className="text-ink-muted mt-2 max-w-prose text-sm leading-relaxed">
+                Beta, alpha, tracking error, the Treynor ratio and capture ratios all compare
+                this portfolio with a reference index, and this run had none. Enter a benchmark
+                under <span className="text-ink">New analysis</span>, or set one on the
+                portfolio with <span className="text-ink">Edit</span>, and they appear here.
+              </p>
+            </Panel>
+          )}
+
           {/* --- Charts --------------------------------------------------- */}
           <section className="flex flex-col gap-4">
             <h2 className="font-display text-ink text-lg font-light">Over the window</h2>
@@ -307,6 +326,9 @@ export function PortfolioAnalyticsTab() {
                 result={results["average_pairwise_correlation"]}
                 currency={currency}
               />
+              {results["benchmark_beta"] && (
+                <BetaChart result={results["benchmark_beta"]} currency={currency} />
+              )}
             </div>
           </section>
         </>

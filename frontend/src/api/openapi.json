@@ -1908,7 +1908,7 @@
           "market data"
         ],
         "summary": "Refresh market data for a portfolio",
-        "description": "Fetches any missing daily bars for every holding in the portfolio. Repeating the call is safe: ingestion is idempotent, keyed by asset, date, and source. An asset that cannot be refreshed is reported under `failures` without preventing the others from updating.",
+        "description": "Fetches any missing daily bars for every holding in the portfolio, and re-reads the newest one, which a live provider keeps revising until the close. Repeating the call is safe: ingestion is idempotent, keyed by asset, date, and source. An asset that cannot be refreshed is reported under `failures` without preventing the others from updating. `quick=true` limits the work to the last few days and skips instrument metadata, which is what a page load wants.",
         "operationId": "refresh_portfolio_market_data_api_v1_portfolios__portfolio_id__market_data_refresh_post",
         "parameters": [
           {
@@ -1960,6 +1960,18 @@
               "title": "End"
             },
             "description": "Inclusive end date."
+          },
+          {
+            "name": "quick",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Only bring the newest prices up to date: a short recent window, and no re-reading of instrument metadata. What a page load or a refresh button wants, as opposed to building history.",
+              "default": false,
+              "title": "Quick"
+            },
+            "description": "Only bring the newest prices up to date: a short recent window, and no re-reading of instrument metadata. What a page load or a refresh button wants, as opposed to building history."
           }
         ],
         "responses": {
@@ -1969,6 +1981,126 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MarketDataRefreshResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portfolios/{portfolio_id}/market-data/coverage": {
+      "get": {
+        "tags": [
+          "market data"
+        ],
+        "summary": "Stored price coverage of a window",
+        "description": "Reports, for every holding, how much of a date window its stored prices cover. Fetches nothing. It exists so a screen can say which holdings have no prices for a period before an analysis or a scenario is run over it, rather than after.",
+        "operationId": "get_price_coverage_api_v1_portfolios__portfolio_id__market_data_coverage_get",
+        "parameters": [
+          {
+            "name": "portfolio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Portfolio identifier.",
+              "title": "Portfolio Id"
+            },
+            "description": "Portfolio identifier."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Inclusive start of the window.",
+              "title": "Start"
+            },
+            "description": "Inclusive start of the window."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Inclusive end of the window.",
+              "title": "End"
+            },
+            "description": "Inclusive end of the window."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverageResponse"
                 }
               }
             }
@@ -6106,6 +6238,52 @@
         ],
         "title": "Body_import_positions_api_v1_portfolios__portfolio_id__positions_import_post"
       },
+      "CoverageResponse": {
+        "properties": {
+          "portfolio_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Portfolio Id"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "title": "End"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "complete": {
+            "type": "boolean",
+            "title": "Complete",
+            "description": "True when every holding is fully covered."
+          },
+          "holdings": {
+            "items": {
+              "$ref": "#/components/schemas/HoldingCoverage"
+            },
+            "type": "array",
+            "title": "Holdings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "portfolio_id",
+          "start",
+          "end",
+          "source",
+          "complete",
+          "holdings"
+        ],
+        "title": "CoverageResponse",
+        "description": "Stored price coverage of a window, for every holding in a portfolio.\n\nRead-only: it reports what is stored and fetches nothing, so it is safe to\ncall before deciding whether to fetch."
+      },
       "DataQualityNote": {
         "properties": {
           "date": {
@@ -6326,6 +6504,75 @@
         "title": "HealthResponse",
         "description": "Liveness payload."
       },
+      "HoldingCoverage": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "`full` when stored prices span the window, `partial` when they start late or stop early, `none` when nothing is stored inside it."
+          },
+          "first_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Date"
+          },
+          "last_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Date"
+          },
+          "observations": {
+            "type": "integer",
+            "title": "Observations"
+          },
+          "expected_observations": {
+            "type": "integer",
+            "title": "Expected Observations",
+            "description": "Expected trading days in the window, by the weekday calendar."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "Plain-language account of what is missing. Null when nothing is."
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "status",
+          "first_date",
+          "last_date",
+          "observations",
+          "expected_observations"
+        ],
+        "title": "HoldingCoverage",
+        "description": "How much of a window one holding's stored prices cover."
+      },
       "HoldingSummaryResponse": {
         "properties": {
           "symbol": {
@@ -6395,6 +6642,19 @@
               }
             ],
             "title": "Latest Price Date"
+          },
+          "latest_price_fetched_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Price Fetched At",
+            "description": "When this price was last read from the provider, to the second. The price date says which trading day it belongs to; this says how old the reading is."
           },
           "market_value": {
             "anyOf": [
@@ -6614,6 +6874,12 @@
             "format": "date",
             "title": "Requested End"
           },
+          "fetched_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fetched At",
+            "description": "When this refresh read the provider, in UTC, to the second."
+          },
           "assets_refreshed": {
             "type": "integer",
             "title": "Assets Refreshed"
@@ -6644,6 +6910,7 @@
           "source",
           "requested_start",
           "requested_end",
+          "fetched_at",
           "assets_refreshed",
           "bars_written",
           "results",
@@ -7382,6 +7649,19 @@
               }
             ],
             "title": "Data As Of"
+          },
+          "prices_fetched_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prices Fetched At",
+            "description": "The oldest fetch among the priced holdings: every price shown is at least this fresh. Null when nothing is priced."
           },
           "holdings_count": {
             "type": "integer",

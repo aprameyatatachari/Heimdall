@@ -14,7 +14,7 @@ import { cx } from "@/lib/cx";
 import { useNavigate } from "react-router-dom";
 
 import { PortfolioFormDialog } from "./parts/PortfolioFormDialog";
-import { RefreshMarketDataButton } from "./parts/RefreshMarketDataButton";
+import { PriceRefresh } from "./parts/PriceRefresh";
 
 const TABS = [
   { to: ".", label: "Overview", end: true },
@@ -146,7 +146,13 @@ export function PortfolioLayout() {
             <div className="border-line-soft mt-6 border-t pt-4">
               <DataAsOf
                 date={s?.data_as_of}
-                action={<RefreshMarketDataButton portfolioId={portfolioId} />}
+                action={
+                  <PriceRefresh
+                    portfolioId={portfolioId}
+                    fetchedAt={s?.prices_fetched_at}
+                    hasHoldings={(s?.holdings_count ?? 0) > 0}
+                  />
+                }
               />
               {s && s.unpriced_symbols.length > 0 && (
                 <p className="text-caution mt-3 text-sm">

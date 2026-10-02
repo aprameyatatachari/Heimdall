@@ -11,6 +11,8 @@ import { Field } from "@/components/Field";
 import { Select } from "@/components/Select";
 import type { RunParameters } from "@/lib/metrics";
 
+import { CoverageWarning } from "./CoverageWarning";
+
 /**
  * The parameters of an analysis.
  *
@@ -109,6 +111,8 @@ export interface AnalysisControlsProps {
   pending: boolean;
   error: unknown;
   onRun: (body: AnalysisRunRequest) => void;
+  /** For the price-coverage check on the chosen window. */
+  portfolioId: string;
 }
 
 export function AnalysisControls({
@@ -117,6 +121,7 @@ export function AnalysisControls({
   pending,
   error,
   onRun,
+  portfolioId,
 }: AnalysisControlsProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const {
@@ -124,6 +129,7 @@ export function AnalysisControls({
     handleSubmit,
     reset,
     setError,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -253,6 +259,15 @@ export function AnalysisControls({
           {...register("minimum_observations")}
         />
       </div>
+
+      {/* Checked against the window as it is typed, so the warning arrives
+          before the run and its charts rather than as a footnote to them. */}
+      <CoverageWarning
+        portfolioId={portfolioId}
+        start={watch("start")}
+        end={watch("end")}
+        what="analysis"
+      />
 
       <div className="flex flex-wrap items-center gap-4">
         <Button type="submit" loading={pending}>

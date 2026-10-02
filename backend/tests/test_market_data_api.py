@@ -3,12 +3,25 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 from sqlalchemy import func, select
 
+from app.assets.models import Asset, AssetType
+from app.assets.repository import AssetRepository
+from app.common.clock import FixedClock
+from app.market_data.calendar import DateRange, expected_trading_days
 from app.market_data.models import PriceBar
+from app.market_data.provider import (
+    AssetMetadata,
+    AssetSearchResult,
+    MarketDataProvider,
+    PriceObservation,
+)
+from app.market_data.repository import PriceBarRepository
+from app.market_data.service import MarketDataService
 from tests.conftest import requires_postgres
 
 pytestmark = [pytest.mark.integration, requires_postgres]
@@ -240,6 +253,248 @@ async def test_a_refresh_that_stores_nothing_reports_no_as_of_date(api):
 
     assert response.status_code == 200, response.text
     assert response.json()["data_as_of"] is None
+
+
+async def test_a_refresh_says_when_it_read_the_provider(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio_with(api, headers, ["SPY"])
+
+    body = (await _refresh(api, headers, portfolio_id)).json()
+
+    # To the second, in UTC: how old a price is depends on when it was read.
+    assert "T" in body["fetched_at"]
+
+
+async def test_the_summary_says_when_each_price_was_last_fetched(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio_with(api, headers, ["SPY", "AAPL"])
+    await _refresh(api, headers, portfolio_id)
+
+    summary = (await api.get(f"{PORTFOLIOS}/{portfolio_id}/summary", headers=headers)).json()
+
+    assert summary["prices_fetched_at"] is not None
+    assert all(holding["latest_price_fetched_at"] for holding in summary["holdings"])
+    # The headline figure is the oldest fetch, so it is true of every price shown.
+    assert summary["prices_fetched_at"] == min(
+        holding["latest_price_fetched_at"] for holding in summary["holdings"]
+    )
+
+
+async def test_a_historical_bar_is_not_read_again(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio_with(api, headers, ["SPY"])
+
+    await _refresh(api, headers, portfolio_id)
+    again = (await _refresh(api, headers, portfolio_id)).json()
+
+    # A close from 2024 is final. Re-reading it on every refresh would be a
+    # request for an answer already held.
+    assert again["results"][0]["ranges_fetched"] == 0
+
+
+class _LiveProvider(MarketDataProvider):
+    """A provider whose newest bar is "today", and changes between reads."""
+
+    def __init__(self, today: date) -> None:
+        self._today = today
+        self.calls = 0
+
+    @property
+    def name(self) -> str:
+        return "yahoo"
+
+    async def search_assets(self, query: str, *, limit: int = 10) -> list[AssetSearchResult]:
+        del query, limit
+        return []
+
+    async def get_asset_metadata(self, symbol: str) -> AssetMetadata:
+        return AssetMetadata(
+            symbol=symbol,
+            name="Live Test",
+            asset_type=AssetType.EQUITY,
+            exchange="NYSE",
+            currency="USD",
+        )
+
+    async def get_daily_prices(
+        self, symbol: str, *, start: date, end: date
+    ) -> list[PriceObservation]:
+        del symbol
+        self.calls += 1
+        # The price moves on every read, the way an intraday bar does.
+        close = Decimal("100") + Decimal(self.calls)
+        return [
+            PriceObservation(date=day, close=close, adjusted_close=close)
+            for day in expected_trading_days(start, end)
+            if day <= self._today
+        ]
+
+
+async def test_todays_bar_is_read_again_and_its_fetch_time_moves(db_session):
+    # A Thursday, so "today" is a trading day by the weekday calendar.
+    now = datetime(2026, 10, 1, 9, 30, 15, tzinfo=UTC)
+    clock = FixedClock(now)
+    provider = _LiveProvider(now.date())
+    service = MarketDataService(
+        session=db_session,
+        assets=AssetRepository(db_session),
+        price_bars=PriceBarRepository(db_session),
+        provider=provider,
+        clock=clock,
+    )
+    asset = Asset(
+        symbol=f"LIVE{uuid.uuid4().hex[:6].upper()}",
+        currency="USD",
+        asset_type=AssetType.EQUITY,
+    )
+    db_session.add(asset)
+    await db_session.flush()
+    window = DateRange(now.date() - timedelta(days=7), now.date())
+
+    first = await service.ingest(asset=asset, window=window, refresh_latest=True)
+    clock.advance(42)
+    second = await service.ingest(asset=asset, window=window, refresh_latest=True)
+
+    # Gap detection alone would call today's bar done the moment it existed, and
+    # a price read at the open would be shown all day as current.
+    assert first.ranges_fetched
+    assert second.ranges_fetched, "the newest bar was not read again"
+
+    bars = await PriceBarRepository(db_session).list_for_asset(asset.id)
+    newest = bars[-1]
+    await db_session.refresh(newest)
+    assert newest.date == now.date()
+    # The revised close won, and the bar says when it was read — to the second.
+    assert newest.close == Decimal("102")
+    assert newest.fetched_at == now + timedelta(seconds=42)
+
+
+async def test_without_the_flag_a_stored_bar_is_left_alone(db_session):
+    now = datetime(2026, 10, 1, 9, 30, tzinfo=UTC)
+    provider = _LiveProvider(now.date())
+    service = MarketDataService(
+        session=db_session,
+        assets=AssetRepository(db_session),
+        price_bars=PriceBarRepository(db_session),
+        provider=provider,
+        clock=FixedClock(now),
+    )
+    asset = Asset(
+        symbol=f"LIVE{uuid.uuid4().hex[:6].upper()}",
+        currency="USD",
+        asset_type=AssetType.EQUITY,
+    )
+    db_session.add(asset)
+    await db_session.flush()
+    window = DateRange(now.date() - timedelta(days=7), now.date())
+
+    await service.ingest(asset=asset, window=window)
+    second = await service.ingest(asset=asset, window=window)
+
+    # An analysis run reading history must not turn into a provider call per
+    # holding. Only an explicit refresh re-reads.
+    assert not second.ranges_fetched
+    assert provider.calls == 1
+
+
+async def test_a_quick_refresh_only_reaches_back_a_few_days(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio_with(api, headers, ["SPY"])
+
+    response = await api.post(
+        f"{PORTFOLIOS}/{portfolio_id}/market-data/refresh",
+        params={"quick": "true"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    span = date.fromisoformat(body["requested_end"]) - date.fromisoformat(body["requested_start"])
+    assert span.days <= 7
+
+
+async def test_coverage_reports_a_holding_with_no_prices_in_the_window(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio_with(api, headers, ["SPY", "AAPL"])
+    await _refresh(api, headers, portfolio_id)
+
+    # The helper's window is the first quarter of 2024; ask about 2019 instead.
+    response = await api.get(
+        f"{PORTFOLIOS}/{portfolio_id}/market-data/coverage",
+        params={"start": "2019-01-02", "end": "2019-03-29"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["complete"] is False
+    assert {item["status"] for item in body["holdings"]} == {"none"}
+    assert all("No prices are stored" in item["message"] for item in body["holdings"])
+
+
+async def test_coverage_is_complete_for_a_window_that_was_fetched(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio_with(api, headers, ["SPY"])
+    await _refresh(api, headers, portfolio_id)
+
+    response = await api.get(
+        f"{PORTFOLIOS}/{portfolio_id}/market-data/coverage",
+        params=WINDOW,
+        headers=headers,
+    )
+
+    body = response.json()
+    assert body["complete"] is True
+    assert body["holdings"][0]["status"] == "full"
+    assert body["holdings"][0]["message"] is None
+
+
+async def test_coverage_notices_prices_that_start_late(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio_with(api, headers, ["SPY"])
+    await _refresh(api, headers, portfolio_id)
+
+    # Stored: Q1 2024. Asked about: all of 2023 through Q1 2024.
+    response = await api.get(
+        f"{PORTFOLIOS}/{portfolio_id}/market-data/coverage",
+        params={"start": "2023-01-02", "end": "2024-03-29"},
+        headers=headers,
+    )
+
+    holding = response.json()["holdings"][0]
+    assert holding["status"] == "partial"
+    assert "prices begin on" in holding["message"]
+
+
+async def test_coverage_fetches_nothing(api, db_session):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio_with(api, headers, ["SPY"])
+    before = await db_session.execute(select(func.count()).select_from(PriceBar))
+
+    await api.get(
+        f"{PORTFOLIOS}/{portfolio_id}/market-data/coverage",
+        params=WINDOW,
+        headers=headers,
+    )
+
+    # It is a question about what is stored. Answering it by fetching would make
+    # the warning it exists to produce impossible to see.
+    after = await db_session.execute(select(func.count()).select_from(PriceBar))
+    assert after.scalar_one() == before.scalar_one()
+
+
+async def test_another_user_cannot_read_coverage(api):
+    owner = await _signed_in_user(api)
+    intruder = await _signed_in_user(api)
+    portfolio_id = await _portfolio_with(api, owner, ["SPY"])
+
+    response = await api.get(
+        f"{PORTFOLIOS}/{portfolio_id}/market-data/coverage",
+        params=WINDOW,
+        headers=intruder,
+    )
+
+    assert response.status_code == 404
 
 
 async def test_refresh_enriches_assets_created_by_an_import(api):

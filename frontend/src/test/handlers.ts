@@ -34,6 +34,43 @@ export function errorBody(body: Partial<ApiErrorBody> & { code: string; message:
   return { error: { details: null, request_id: "test-request", ...body } };
 }
 
+/**
+ * Requests a portfolio screen makes on its own, without being asked.
+ *
+ * Opening a portfolio reads the newest prices, and the analysis and stress
+ * screens check price coverage for the window on screen. Neither is what most
+ * tests are about, so both answer quietly here — a refresh that changed nothing,
+ * and a window that is fully covered. They sit in the server's base handlers,
+ * which are the lowest priority, so a test that cares registers its own.
+ */
+const backgroundHandlers = [
+  http.post(`${API}/portfolios/:portfolioId/market-data/refresh`, ({ params }) =>
+    HttpResponse.json({
+      portfolio_id: String(params["portfolioId"]),
+      data_as_of: "2023-12-29",
+      source: "fixture",
+      requested_start: "2023-12-22",
+      requested_end: "2023-12-29",
+      fetched_at: "2026-02-01T10:00:00Z",
+      assets_refreshed: 0,
+      bars_written: 0,
+      results: [],
+      failures: [],
+    }),
+  ),
+  http.get(`${API}/portfolios/:portfolioId/market-data/coverage`, ({ params, request }) => {
+    const url = new URL(request.url);
+    return HttpResponse.json({
+      portfolio_id: String(params["portfolioId"]),
+      start: url.searchParams.get("start") ?? "2022-01-03",
+      end: url.searchParams.get("end") ?? "2023-12-29",
+      source: "fixture",
+      complete: true,
+      holdings: [],
+    });
+  }),
+];
+
 /** Signed out: the refresh cookie buys nothing and `/auth/me` is refused. */
 export const handlers = [
   http.post(`${API}/auth/refresh`, () =>
@@ -47,6 +84,7 @@ export const handlers = [
     }),
   ),
   http.post(`${API}/auth/logout`, () => new HttpResponse(null, { status: 204 })),
+  ...backgroundHandlers,
 ];
 
 /** A live session: boot refresh succeeds and `/auth/me` answers. */

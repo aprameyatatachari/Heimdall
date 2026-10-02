@@ -139,6 +139,21 @@ export function readRiskAssets(result: RiskResult | undefined): RiskAsset[] {
   });
 }
 
+/** One holding's own sensitivity to the benchmark. */
+export interface AssetBeta {
+  symbol: string;
+  beta: number | null;
+  weight: number | null;
+}
+
+export function readAssetBetas(result: RiskResult | undefined): AssetBeta[] {
+  return readRecords(metadataOf(result), "assets").flatMap((asset) => {
+    const symbol = readString(asset, "symbol");
+    if (!symbol) return [];
+    return [{ symbol, beta: readNumber(asset, "beta"), weight: readNumber(asset, "weight") }];
+  });
+}
+
 export interface CorrelationMatrix {
   symbols: string[];
   /** Row-major, `null` where a pair could not be measured. */
@@ -334,8 +349,8 @@ const BENCHMARK_CAPTION = (result: RiskResult): string | undefined => {
 /**
  * Every metric the backend can return.
  *
- * There is no Sortino ratio and no bare "alpha": the backend computes
- * `benchmark_alpha_annualized`, and it is labelled as such. DESIGN.md section 11.
+ * There is no bare "alpha": the backend computes `benchmark_alpha_annualized`,
+ * and it is labelled as such. DESIGN.md section 11.
  */
 export const METRICS: Record<string, MetricDescriptor> = {
   portfolio_value: {
@@ -450,6 +465,72 @@ export const METRICS: Record<string, MetricDescriptor> = {
         : `Risk-free rate ${formatPercent(rate, { digits: 2 })} a year`;
     },
   },
+  sortino_ratio: {
+    label: "Sortino ratio",
+    display: "number",
+    basis: "annualized",
+    definition:
+      "Return above the risk-free rate divided by downside volatility. Like the Sharpe ratio, except that swings upward are not counted as risk — only the periods that fell short.",
+    caption: (result) => {
+      const rate = readNumber(metadataOf(result), "annual_risk_free_rate");
+      return rate === null
+        ? undefined
+        : `Risk-free rate ${formatPercent(rate, { digits: 2 })} a year`;
+    },
+  },
+  downside_deviation: {
+    label: "Downside deviation",
+    display: "percent",
+    basis: "annualized",
+    definition:
+      "The volatility of only the periods that fell short of the risk-free rate, averaged over every period. It cannot exceed ordinary volatility, and the gap between the two is how much of the variability was upward.",
+  },
+  calmar_ratio: {
+    label: "Calmar ratio",
+    display: "number",
+    basis: "period",
+    definition:
+      "Annualized return divided by the size of the maximum drawdown: how much return came with each unit of the worst fall. Undefined for a window with no drawdown.",
+  },
+  skewness: {
+    label: "Skewness",
+    display: "number",
+    basis: "period",
+    definition:
+      "Whether the return distribution leans. Negative means the left tail is the longer one — the large moves, when they came, were mostly losses. Zero is symmetric.",
+  },
+  excess_kurtosis: {
+    label: "Excess kurtosis",
+    display: "number",
+    basis: "period",
+    definition:
+      "How heavy the tails are against a normal curve, which scores zero. Above zero, extreme periods were more common than a normal model expects, which is exactly when parametric Value at Risk understates the loss.",
+  },
+  best_period_return: {
+    label: "Largest single gain",
+    display: "percent",
+    basis: "period",
+    definition: "The largest one-period gain in the window, and the date it happened.",
+    signed: true,
+    tone: true,
+    caption: (result) => {
+      const date = readString(metadataOf(result), "date");
+      return date ? `On ${formatDate(date)}` : undefined;
+    },
+  },
+  worst_period_return: {
+    label: "Largest single loss",
+    display: "percent",
+    basis: "period",
+    definition:
+      "The largest one-period loss in the window, and the date it happened. An average hides this; a holder remembers it.",
+    signed: true,
+    tone: true,
+    caption: (result) => {
+      const date = readString(metadataOf(result), "date");
+      return date ? `On ${formatDate(date)}` : undefined;
+    },
+  },
   max_drawdown: {
     label: "Maximum drawdown",
     display: "percent",
@@ -543,6 +624,30 @@ export const METRICS: Record<string, MetricDescriptor> = {
       "Return in excess of the benchmark divided by tracking error. Undefined when tracking error is zero.",
     caption: BENCHMARK_CAPTION,
   },
+  treynor_ratio: {
+    label: "Treynor ratio",
+    display: "percent",
+    basis: "annualized",
+    definition:
+      "Return above the risk-free rate divided by beta: the excess return earned for each unit of market risk taken, rather than for each unit of total volatility as Sharpe measures.",
+    caption: BENCHMARK_CAPTION,
+  },
+  upside_capture: {
+    label: "Upside capture",
+    display: "number",
+    basis: "period",
+    definition:
+      "The portfolio's compounded return over the periods the benchmark rose, as a multiple of the benchmark's. 1.10 gained 10% more than the benchmark when it was rising.",
+    caption: BENCHMARK_CAPTION,
+  },
+  downside_capture: {
+    label: "Downside capture",
+    display: "number",
+    basis: "period",
+    definition:
+      "The same over the periods the benchmark fell. 0.80 lost 20% less than the benchmark when it was falling; above 1 lost more.",
+    caption: BENCHMARK_CAPTION,
+  },
   benchmark_comparison_series: {
     label: "Benchmark total return",
     display: "percent",
@@ -622,10 +727,19 @@ export const TILE_GROUPS: TileGroup[] = [
       "volatility_daily",
       "volatility_annualized",
       "rolling_volatility",
+      "downside_deviation",
       "sharpe_ratio",
+      "sortino_ratio",
+      "calmar_ratio",
       "max_drawdown",
       "current_drawdown",
     ],
+  },
+  {
+    title: "Shape of returns",
+    blurb:
+      "What the averages leave out: whether the distribution leans, how heavy its tails are, and its single best and worst periods.",
+    metrics: ["skewness", "excess_kurtosis", "best_period_return", "worst_period_return"],
   },
   {
     title: "Tail risk",
@@ -642,6 +756,9 @@ export const TILE_GROUPS: TileGroup[] = [
       "benchmark_alpha_annualized",
       "tracking_error",
       "information_ratio",
+      "treynor_ratio",
+      "upside_capture",
+      "downside_capture",
     ],
   },
   {

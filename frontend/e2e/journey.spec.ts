@@ -97,7 +97,7 @@ test("a new visitor can register, build a portfolio, analyse it and report on it
   });
 
   await test.step("fetches prices, and says when they are from", async () => {
-    await page.getByRole("button", { name: /refresh prices/i }).click();
+    await page.getByRole("button", { name: "Fetch history" }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByLabel(/^From/).fill(WINDOW.start);
     await dialog.getByLabel(/^To/).fill(WINDOW.end);
@@ -147,21 +147,27 @@ test("a new visitor can register, build a portfolio, analyse it and report on it
     await page
       .getByLabel("Scenario", { exact: true })
       .selectOption({ label: "COVID-19 crash" });
-    await page.getByRole("button", { name: /run this scenario/i }).click();
-
     // A historical scenario replays its own window, and a portfolio priced only
-    // over recent months has nothing stored for 2020. The screen offers to fetch
-    // exactly that period rather than leaving a dead end with instructions.
+    // over recent months has nothing stored for 2020. The screen says so before
+    // anything is run, and offers to fetch exactly that period.
     // `waitFor`, not `isVisible`: the latter resolves immediately against the
-    // current DOM, and the alert this button sits in takes a moment to arrive.
-    const fetchAndRun = page.getByRole("button", { name: /fetch prices for this period/i });
-    const needsPrices = await fetchAndRun
-      .waitFor({ state: "visible", timeout: 30_000 })
+    // current DOM, and the warning takes a moment to arrive.
+    const fetchFirst = page.getByRole("button", {
+      name: "Fetch prices for this period",
+      exact: true,
+    });
+    const needsPrices = await fetchFirst
+      .waitFor({ state: "visible", timeout: 20_000 })
       .then(() => true)
       .catch(() => false);
     if (needsPrices) {
-      await fetchAndRun.click();
+      await expect(page.getByText(/no prices for this period/i).first()).toBeVisible();
+      await fetchFirst.click();
+      // The warning goes once the window is covered.
+      await expect(fetchFirst).toBeHidden({ timeout: 120_000 });
     }
+
+    await page.getByRole("button", { name: /run this scenario/i }).click();
 
     await expect(page.getByText("Estimated impact", { exact: false }).first()).toBeVisible({
       timeout: 120_000,

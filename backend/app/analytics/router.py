@@ -48,6 +48,7 @@ def _summary_response(snapshot: PortfolioSnapshot) -> PortfolioSummaryResponse:
             cost_basis=holding.cost_basis,
             latest_price=holding.latest_price,
             latest_price_date=holding.latest_price_date,
+            latest_price_fetched_at=holding.latest_price_fetched_at,
             market_value=holding.market_value,
             weight=weights.get(holding.symbol),
             unrealized_profit_loss=(
@@ -63,6 +64,16 @@ def _summary_response(snapshot: PortfolioSnapshot) -> PortfolioSummaryResponse:
         base_currency=snapshot.base_currency,
         benchmark_symbol=snapshot.benchmark_symbol,
         data_as_of=snapshot.data_as_of,
+        # The oldest, not the newest: "prices fetched at" has to be true of every
+        # price on the screen, and one stale holding makes the newest a lie.
+        prices_fetched_at=min(
+            (
+                holding.latest_price_fetched_at
+                for holding in snapshot.holdings
+                if holding.latest_price_fetched_at is not None
+            ),
+            default=None,
+        ),
         holdings_count=len(snapshot.holdings),
         priced_holdings_count=len(snapshot.priced_holdings),
         unpriced_symbols=snapshot.unpriced_symbols,

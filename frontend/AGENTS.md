@@ -258,7 +258,19 @@ never rounded in the client. Edit is inline. Delete confirms.
    one view. Never discard the good rows because some were bad.
 5. Never log or echo the file's full contents.
 
-**Market-data refresh** — `POST /portfolios/{id}/market-data/refresh` with a
+**Price freshness.** Opening or reloading a portfolio reads the newest prices
+once (`quick=true`), without being asked, and **Refresh now** does the same on
+demand in one click — no dialog, no dates. The time of the fetch is shown to the
+second, per holding and for the portfolio; the portfolio figure is the oldest of
+them, so it is true of every price on screen. A failed refresh keeps the last
+prices and says they are from the last successful fetch.
+
+**Missing prices are flagged before anything is drawn.** The analysis parameters
+and the historical-scenario picker both check stored coverage for the window on
+screen and name any holding with no prices in it, with a control to fetch exactly
+that window.
+
+**Fetch history** — `POST /portfolios/{id}/market-data/refresh` with a
 start/end window. Shows bars ingested and the new as-of date, and invalidates
 summary, analytics and signals queries on success.
 
@@ -294,8 +306,15 @@ The last three carry a **series** in their metadata rather than only a figure �
 Charts read those; nothing in the client recomputes a portfolio, because a chart
 that disagreed with the tile beside it would be worse than no chart at all.
 
-There is **no Sortino ratio** and no bare "alpha" — the backend computes
-`benchmark_alpha_annualized`. Label it as such.
+Also `sortino_ratio`, `downside_deviation`, `calmar_ratio`, `skewness`,
+`excess_kurtosis`, `best_period_return`, `worst_period_return`, and — with a
+benchmark — `treynor_ratio`, `upside_capture`, `downside_capture`, plus each
+holding's own beta in `benchmark_beta.metadata.assets`.
+
+There is no bare "alpha" — the backend computes `benchmark_alpha_annualized`.
+Label it as such. When a run has no benchmark the whole benchmark group is
+absent, and the screen says why rather than leaving a reader to conclude the
+tool has no beta.
 
 Charts: portfolio value over time, portfolio versus benchmark, drawdown, rolling
 volatility, allocation by asset and sector, correlation heatmap, risk

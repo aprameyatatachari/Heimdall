@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field, field_serializer
@@ -118,8 +118,48 @@ class MarketDataRefreshResponse(BaseModel):
     source: str
     requested_start: date
     requested_end: date
+    fetched_at: datetime = Field(
+        description="When this refresh read the provider, in UTC, to the second."
+    )
     assets_refreshed: int
     bars_written: int
     results: list[AssetRefreshResult]
     # Present when some assets failed. Successful assets are still reported above.
     failures: list[RefreshFailure]
+
+
+class HoldingCoverage(BaseModel):
+    """How much of a window one holding's stored prices cover."""
+
+    symbol: str
+    status: str = Field(
+        description=(
+            "`full` when stored prices span the window, `partial` when they start "
+            "late or stop early, `none` when nothing is stored inside it."
+        )
+    )
+    first_date: date | None
+    last_date: date | None
+    observations: int
+    expected_observations: int = Field(
+        description="Expected trading days in the window, by the weekday calendar."
+    )
+    message: str | None = Field(
+        default=None,
+        description="Plain-language account of what is missing. Null when nothing is.",
+    )
+
+
+class CoverageResponse(BaseModel):
+    """Stored price coverage of a window, for every holding in a portfolio.
+
+    Read-only: it reports what is stored and fetches nothing, so it is safe to
+    call before deciding whether to fetch.
+    """
+
+    portfolio_id: uuid.UUID
+    start: date
+    end: date
+    source: str
+    complete: bool = Field(description="True when every holding is fully covered.")
+    holdings: list[HoldingCoverage]

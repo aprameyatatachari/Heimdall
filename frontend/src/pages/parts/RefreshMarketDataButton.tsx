@@ -25,14 +25,14 @@ export function RefreshMarketDataButton({ portfolioId }: { portfolioId: string }
 
   return (
     <>
-      <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
-        Refresh prices
+      <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
+        Fetch history
       </Button>
 
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
-        title="Refresh market data"
+        title="Fetch price history"
         description="Fetch daily price history for every holding in this portfolio."
         footer={
           <>

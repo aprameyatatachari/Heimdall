@@ -617,6 +617,88 @@ class AnalyticsService:
             },
         )
 
+        attempt(
+            "sortino_ratio",
+            MetricUnit.RATIO,
+            lambda: calc.sortino_ratio(
+                portfolio_series,
+                annual_risk_free_rate=parameters.annual_risk_free_rate,
+                periods_per_year=periods,
+            ),
+            {
+                "annualized": True,
+                "annual_risk_free_rate": parameters.annual_risk_free_rate,
+                "definition": (
+                    "Excess return per unit of downside volatility. Unlike Sharpe, "
+                    "upside swings are not counted as risk."
+                ),
+            },
+        )
+        attempt(
+            "downside_deviation",
+            MetricUnit.RATIO,
+            lambda: calc.downside_deviation(
+                portfolio_series,
+                annual_minimum_acceptable_return=parameters.annual_risk_free_rate,
+                periods_per_year=periods,
+            ),
+            {
+                "annualized": True,
+                "annual_risk_free_rate": parameters.annual_risk_free_rate,
+                "assumption": (
+                    "Measured against the risk-free rate, averaging the squared "
+                    "shortfall over every period rather than only the losing ones."
+                ),
+            },
+        )
+        attempt(
+            "calmar_ratio",
+            MetricUnit.RATIO,
+            lambda: calc.calmar_ratio(portfolio_series, periods_per_year=periods),
+            {"annualized": True, "assumption": FIXED_WEIGHT_NOTE},
+        )
+        attempt(
+            "skewness",
+            MetricUnit.RATIO,
+            lambda: calc.skewness(portfolio_series),
+            {"annualized": False},
+        )
+        attempt(
+            "excess_kurtosis",
+            MetricUnit.RATIO,
+            lambda: calc.excess_kurtosis(portfolio_series),
+            {
+                "annualized": False,
+                "limitation": (
+                    "Above zero, extreme periods were more common than a normal "
+                    "distribution expects, and parametric VaR understates the loss."
+                ),
+            },
+        )
+
+        # The single best and worst periods, with their dates. Averages hide these,
+        # and they are what a reader remembers.
+        if portfolio_series.size > 0 and len(aligned.dates) == portfolio_series.size:
+            best_index = int(portfolio_series.argmax())
+            worst_index = int(portfolio_series.argmin())
+            for metric, index in (
+                ("best_period_return", best_index),
+                ("worst_period_return", worst_index),
+            ):
+                metrics.append(
+                    _Metric(
+                        metric=metric,
+                        unit=MetricUnit.RATIO,
+                        value=float(portfolio_series[index]),
+                        metadata={
+                            **window,
+                            "annualized": False,
+                            "date": aligned.dates[index].isoformat(),
+                            "assumption": FIXED_WEIGHT_NOTE,
+                        },
+                    )
+                )
+
         # Drawdown and the value chart both work on the value path implied by the
         # return series. The path is anchored so that it *ends* at the portfolio's
         # current value, which is the only anchoring under which the chart's last
@@ -1046,6 +1128,66 @@ class AnalyticsService:
             ]
 
         shared = {**window, "observations": aligned.observation_count}
+
+        # Each holding's own beta, so the portfolio figure can be taken apart: a
+        # beta of 1.0 made of two holdings at 1.0 is a different portfolio from
+        # one made of 0.2 and 1.8.
+        asset_betas: list[dict[str, Any]] = []
+        for column, symbol in enumerate(aligned.symbols):
+            if symbol == parameters.benchmark_symbol and symbol not in weights_by_symbol:
+                continue
+            try:
+                asset_betas.append(
+                    {
+                        "symbol": symbol,
+                        "beta": calc.beta(aligned.matrix[:, column], benchmark_series),
+                        "weight": float(weights[column]),
+                    }
+                )
+            except calc.CalculationError:
+                # Left out rather than zeroed: an unknown beta is not a beta of 0.
+                continue
+
+        extras: list[_Metric] = []
+        extra_specs: tuple[tuple[str, Callable[[], float], MetricMetadata], ...] = (
+            (
+                "treynor_ratio",
+                lambda: calc.treynor_ratio(
+                    portfolio_series,
+                    benchmark_series,
+                    annual_risk_free_rate=parameters.annual_risk_free_rate,
+                    periods_per_year=parameters.periods_per_year,
+                ),
+                {
+                    **shared,
+                    "annualized": True,
+                    "annual_risk_free_rate": parameters.annual_risk_free_rate,
+                },
+            ),
+            (
+                "upside_capture",
+                lambda: calc.capture_ratio(portfolio_series, benchmark_series, upside=True),
+                {**shared, "annualized": False},
+            ),
+            (
+                "downside_capture",
+                lambda: calc.capture_ratio(portfolio_series, benchmark_series, upside=False),
+                {**shared, "annualized": False},
+            ),
+        )
+        for metric, compute, metadata in extra_specs:
+            try:
+                extras.append(_Metric(metric, MetricUnit.RATIO, float(compute()), metadata))
+            except calc.CalculationError as exc:
+                extras.append(
+                    _Metric(
+                        metric,
+                        MetricUnit.RATIO,
+                        metadata=metadata,
+                        unavailable_reason=str(exc),
+                    )
+                )
+
         series_metric = _benchmark_series_metric(
             portfolio_series=portfolio_series,
             benchmark_series=benchmark_series,
@@ -1054,7 +1196,13 @@ class AnalyticsService:
         )
         return [
             series_metric,
-            _Metric("benchmark_beta", MetricUnit.RATIO, comparison.beta, shared),
+            *extras,
+            _Metric(
+                "benchmark_beta",
+                MetricUnit.RATIO,
+                comparison.beta,
+                {**shared, "assets": asset_betas},
+            ),
             _Metric(
                 "benchmark_alpha_annualized",
                 MetricUnit.RATIO,

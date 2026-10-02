@@ -8,7 +8,7 @@ import { Money } from "@/components/Figure";
 import { Panel } from "@/components/Panel";
 import { Unavailable } from "@/components/Unavailable";
 import { Empty, Failed, Loading } from "@/components/states";
-import { formatDate, formatQuantity } from "@/lib/format";
+import { formatDate, formatDateTimeSeconds, formatQuantity } from "@/lib/format";
 
 import { CsvImportDialog } from "./parts/CsvImportDialog";
 import { PositionFormDialog } from "./parts/PositionFormDialog";
@@ -124,6 +124,13 @@ export function PortfolioHoldingsTab() {
                             <span className="text-ink-faint block text-xs">
                               {formatDate(holding.latest_price_date)}
                             </span>
+                            {/* The date says which session the price belongs to;
+                                this says how long ago anyone looked. */}
+                            {holding.latest_price_fetched_at && (
+                              <span className="text-ink-faint block text-xs">
+                                fetched {formatDateTimeSeconds(holding.latest_price_fetched_at)}
+                              </span>
+                            )}
                           </>
                         ) : (
                           // Shown, never dropped and never zero: a holding with

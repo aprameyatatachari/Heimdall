@@ -344,6 +344,182 @@ def sharpe_ratio(
     return float(np.mean(excess) / deviation * np.sqrt(periods_per_year))
 
 
+def downside_deviation(
+    returns: object,
+    *,
+    annual_minimum_acceptable_return: float = 0.0,
+    periods_per_year: int = TRADING_DAYS_PER_YEAR,
+    annualize: bool = True,
+) -> float:
+    """Volatility of the returns that fell short of a minimum acceptable return.
+
+        shortfall(t) = min(return(t) - periodic_target, 0)
+        downside     = sqrt(mean(shortfall ** 2)) * sqrt(periods_per_year)
+
+    The mean is taken over **every** period, not only the losing ones. Dividing by
+    the count of losing periods instead is a common variant that makes a series
+    with one bad day look as risky as one with a hundred, and it is not the one
+    the Sortino ratio is defined on.
+    """
+    series = as_array(returns)
+    _require(series, minimum=MIN_OBSERVATIONS_VOLATILITY, metric="Downside deviation")
+
+    target = deannualize_rate(annual_minimum_acceptable_return, periods_per_year=periods_per_year)
+    shortfall = np.minimum(series - target, 0.0)
+    deviation = float(np.sqrt(np.mean(shortfall**2)))
+    return deviation * float(np.sqrt(periods_per_year)) if annualize else deviation
+
+
+def sortino_ratio(
+    returns: object,
+    *,
+    annual_risk_free_rate: float = 0.0,
+    periods_per_year: int = TRADING_DAYS_PER_YEAR,
+) -> float:
+    """Annualized Sortino ratio: excess return per unit of *downside* volatility.
+
+        Sortino = mean(excess) * periods_per_year / downside_deviation
+
+    Like Sharpe, but it does not count upside swings as risk. Raises
+    `DegenerateDataError` when no period fell short of the target: the ratio is
+    undefined there, and reporting a very large number would read as a very good
+    result rather than as "there were no losses to measure".
+    """
+    series = as_array(returns)
+    _require(series, minimum=MIN_OBSERVATIONS_VOLATILITY, metric="Sortino ratio")
+
+    periodic_rate = deannualize_rate(annual_risk_free_rate, periods_per_year=periods_per_year)
+    downside = downside_deviation(
+        series,
+        annual_minimum_acceptable_return=annual_risk_free_rate,
+        periods_per_year=periods_per_year,
+    )
+    if downside < ZERO_TOLERANCE:
+        raise DegenerateDataError(
+            "No period fell short of the risk-free rate, so a Sortino ratio is undefined."
+        )
+
+    return float(np.mean(series - periodic_rate)) * periods_per_year / downside
+
+
+def calmar_ratio(
+    returns: object,
+    *,
+    periods_per_year: int = TRADING_DAYS_PER_YEAR,
+) -> float:
+    """Annualized return divided by the size of the worst drawdown.
+
+        Calmar = annualized_return / abs(maximum_drawdown)
+
+    Undefined when the series never drew down.
+    """
+    series = as_array(returns)
+    _require(series, minimum=MIN_OBSERVATIONS_VOLATILITY, metric="Calmar ratio")
+
+    worst = max_drawdown(value_history(series, starting_value=1.0)).drawdown
+    if abs(worst) < ZERO_TOLERANCE:
+        raise DegenerateDataError(
+            "The series never fell below a previous high, so a Calmar ratio is undefined."
+        )
+    return annualized_return(series, periods_per_year=periods_per_year) / abs(worst)
+
+
+def skewness(returns: object) -> float:
+    """Sample skewness of the return distribution.
+
+    Negative means the left tail is the longer one: losses, when they came, were
+    larger than gains of the same frequency. Bias-corrected, so a short window is
+    not systematically understated.
+    """
+    series = as_array(returns)
+    _require(series, minimum=MIN_OBSERVATIONS_VAR, metric="Skewness")
+    if float(np.std(series, ddof=1)) < ZERO_TOLERANCE:
+        raise DegenerateDataError("Returns have no variability, so skewness is undefined.")
+    return float(stats.skew(series, bias=False))
+
+
+def excess_kurtosis(returns: object) -> float:
+    """Sample excess kurtosis: how heavy the tails are against a normal curve.
+
+    Zero is a normal distribution. Positive means extreme days were more common
+    than a normal model expects, which is exactly the case in which parametric
+    Value at Risk understates the loss.
+    """
+    series = as_array(returns)
+    _require(series, minimum=MIN_OBSERVATIONS_VAR, metric="Kurtosis")
+    if float(np.std(series, ddof=1)) < ZERO_TOLERANCE:
+        raise DegenerateDataError("Returns have no variability, so kurtosis is undefined.")
+    return float(stats.kurtosis(series, fisher=True, bias=False))
+
+
+def beta(asset: object, benchmark: object) -> float:
+    """Sensitivity of one return series to another.
+
+    beta = covariance(asset, benchmark) / variance(benchmark)
+    """
+    asset_returns = as_array(asset)
+    benchmark_returns = as_array(benchmark)
+    if asset_returns.size != benchmark_returns.size:
+        raise DegenerateDataError("The two series must cover the same periods.")
+    _require(asset_returns, minimum=MIN_OBSERVATIONS_VOLATILITY, metric="Beta")
+
+    variance = float(np.var(benchmark_returns, ddof=1))
+    if variance < ZERO_TOLERANCE:
+        raise DegenerateDataError(
+            "The benchmark has no variability over this window, so beta is undefined."
+        )
+    return float(np.cov(asset_returns, benchmark_returns, ddof=1)[0][1]) / variance
+
+
+def treynor_ratio(
+    returns: object,
+    benchmark: object,
+    *,
+    annual_risk_free_rate: float = 0.0,
+    periods_per_year: int = TRADING_DAYS_PER_YEAR,
+) -> float:
+    """Annualized excess return per unit of market risk.
+
+        Treynor = (annualized_return - annual_risk_free_rate) / beta
+
+    Undefined when beta is zero: there is no market risk to divide by.
+    """
+    sensitivity = beta(returns, benchmark)
+    if abs(sensitivity) < 1e-6:
+        raise DegenerateDataError("Beta is zero, so a Treynor ratio is undefined.")
+    series = as_array(returns)
+    return (
+        annualized_return(series, periods_per_year=periods_per_year) - annual_risk_free_rate
+    ) / sensitivity
+
+
+def capture_ratio(portfolio: object, benchmark: object, *, upside: bool) -> float:
+    """How much of the benchmark's up (or down) periods the portfolio captured.
+
+        capture = compounded portfolio return over the chosen periods
+                  / compounded benchmark return over the same periods
+
+    An upside capture of 1.1 gained 10% more than the benchmark when it rose; a
+    downside capture of 0.8 lost 20% less when it fell. Undefined when the
+    benchmark had no such periods.
+    """
+    portfolio_returns = as_array(portfolio)
+    benchmark_returns = as_array(benchmark)
+    if portfolio_returns.size != benchmark_returns.size:
+        raise DegenerateDataError("The two series must cover the same periods.")
+    _require(portfolio_returns, minimum=MIN_OBSERVATIONS_VOLATILITY, metric="Capture ratio")
+
+    chosen = benchmark_returns > 0 if upside else benchmark_returns < 0
+    if not bool(np.any(chosen)):
+        direction = "rose" if upside else "fell"
+        raise DegenerateDataError(f"The benchmark never {direction} in this window.")
+
+    benchmark_total = float(np.prod(1.0 + benchmark_returns[chosen]) - 1.0)
+    if abs(benchmark_total) < ZERO_TOLERANCE:
+        raise DegenerateDataError("The benchmark's move over those periods was zero.")
+    return float(np.prod(1.0 + portfolio_returns[chosen]) - 1.0) / benchmark_total
+
+
 def drawdown_series(values: object) -> FloatArray:
     """Drawdown at each point, relative to the running peak.
 

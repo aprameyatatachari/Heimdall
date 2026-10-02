@@ -93,6 +93,41 @@ class PriceBarRepository:
         )
         return {row[0]: row[1] for row in result.all()}
 
+    async def coverage(
+        self,
+        asset_ids: Sequence[uuid.UUID],
+        *,
+        start: date,
+        end: date,
+        source: PriceSource | None = None,
+    ) -> dict[uuid.UUID, tuple[date, date, int]]:
+        """First date, last date and bar count per asset inside a window.
+
+        An asset with nothing stored in the window is simply absent from the
+        result, which is how the caller tells "no prices" from "few prices".
+        """
+        if not asset_ids:
+            return {}
+        statement = (
+            select(
+                PriceBar.asset_id,
+                func.min(PriceBar.date),
+                func.max(PriceBar.date),
+                func.count(),
+            )
+            .where(
+                PriceBar.asset_id.in_(asset_ids),
+                PriceBar.date >= start,
+                PriceBar.date <= end,
+            )
+            .group_by(PriceBar.asset_id)
+        )
+        if source is not None:
+            statement = statement.where(PriceBar.source == source)
+
+        result = await self._session.execute(statement)
+        return {row[0]: (row[1], row[2], int(row[3])) for row in result.all()}
+
     async def count_for_asset(self, asset_id: uuid.UUID) -> int:
         """How many bars are stored for an asset."""
         result = await self._session.execute(
@@ -121,6 +156,8 @@ class PriceBarRepository:
                 "adjusted_close": statement.excluded.adjusted_close,
                 "volume": statement.excluded.volume,
                 "currency": statement.excluded.currency,
+                # A re-fetch that returns the same close is still a newer reading.
+                "fetched_at": statement.excluded.fetched_at,
             },
         )
 

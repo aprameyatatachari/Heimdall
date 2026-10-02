@@ -688,3 +688,124 @@ def test_alignment_is_insensitive_to_input_order():
 
     assert np.allclose(result_forward.matrix, result_reversed.matrix)
     assert result_forward.symbols == result_reversed.symbols
+
+
+# --- Downside, shape and benchmark-relative measures --------------------------
+
+
+def test_downside_deviation_ignores_the_gains():
+    # Thirty periods: fifteen gains of any size, fifteen losses of 1%.
+    returns = [0.05, -0.01] * 15
+
+    daily = calc.downside_deviation(returns, annualize=False)
+
+    # Mean squared shortfall is taken over every period, so half of them are zero.
+    assert daily == pytest.approx(math.sqrt(15 * 0.0001 / 30), rel=1e-12)
+
+
+def test_downside_deviation_averages_over_every_period_not_only_the_losing_ones():
+    one_bad_day = [0.0] * 29 + [-0.10]
+    many_bad_days = [-0.10] * 30
+
+    # Dividing by the count of losing periods would make these two equal.
+    assert calc.downside_deviation(one_bad_day, annualize=False) < calc.downside_deviation(
+        many_bad_days, annualize=False
+    )
+
+
+def test_sortino_is_above_sharpe_when_the_swings_are_mostly_upward():
+    rng = np.random.default_rng(3)
+    returns = np.abs(rng.normal(0.001, 0.01, 250)) * rng.choice([1, 1, 1, -0.3], 250)
+
+    assert calc.sortino_ratio(returns) > calc.sharpe_ratio(returns)
+
+
+def test_sortino_is_undefined_when_nothing_fell_short():
+    # A very large number here would read as a very good result.
+    with pytest.raises(calc.DegenerateDataError):
+        calc.sortino_ratio([0.01] * 30)
+
+
+def test_calmar_divides_annual_return_by_the_worst_drawdown():
+    rng = np.random.default_rng(5)
+    returns = rng.normal(0.0006, 0.012, 300)
+
+    worst = calc.max_drawdown(calc.value_history(returns, starting_value=1.0)).drawdown
+    expected = calc.annualized_return(returns) / abs(worst)
+
+    assert calc.calmar_ratio(returns) == pytest.approx(expected, rel=1e-12)
+
+
+def test_calmar_is_undefined_for_a_series_that_never_fell():
+    with pytest.raises(calc.DegenerateDataError):
+        calc.calmar_ratio([0.001] * 40)
+
+
+def test_skewness_is_negative_when_the_losses_are_the_larger_moves():
+    returns = [0.01] * 40 + [-0.20] * 2
+
+    assert calc.skewness(returns) < 0
+
+
+def test_a_normal_sample_has_excess_kurtosis_near_zero():
+    rng = np.random.default_rng(11)
+
+    assert calc.excess_kurtosis(rng.normal(0, 0.01, 20_000)) == pytest.approx(0.0, abs=0.1)
+
+
+def test_fat_tails_show_up_as_positive_excess_kurtosis():
+    rng = np.random.default_rng(11)
+
+    assert calc.excess_kurtosis(rng.standard_t(df=4, size=20_000) * 0.01) > 1.0
+
+
+def test_shape_measures_refuse_a_constant_series():
+    with pytest.raises(calc.DegenerateDataError):
+        calc.skewness([0.01] * 40)
+    with pytest.raises(calc.DegenerateDataError):
+        calc.excess_kurtosis([0.01] * 40)
+
+
+def test_beta_of_a_series_against_itself_is_one():
+    rng = np.random.default_rng(2)
+    market = rng.normal(0.0004, 0.01, 120)
+
+    assert calc.beta(market, market) == pytest.approx(1.0, rel=1e-12)
+
+
+def test_beta_scales_with_leverage():
+    rng = np.random.default_rng(2)
+    market = rng.normal(0.0004, 0.01, 120)
+
+    assert calc.beta(market * 1.5, market) == pytest.approx(1.5, rel=1e-12)
+
+
+def test_beta_is_undefined_against_a_flat_benchmark():
+    with pytest.raises(calc.DegenerateDataError):
+        calc.beta([0.01, -0.01] * 15, [0.0] * 30)
+
+
+def test_treynor_is_excess_return_over_beta():
+    rng = np.random.default_rng(8)
+    market = rng.normal(0.0005, 0.01, 252)
+    portfolio = market * 1.2 + rng.normal(0, 0.002, 252)
+
+    expected = (calc.annualized_return(portfolio) - 0.03) / calc.beta(portfolio, market)
+
+    assert calc.treynor_ratio(portfolio, market, annual_risk_free_rate=0.03) == pytest.approx(
+        expected, rel=1e-12
+    )
+
+
+def test_a_leveraged_copy_captures_more_in_both_directions():
+    rng = np.random.default_rng(13)
+    market = rng.normal(0.0003, 0.01, 252)
+    leveraged = market * 1.5
+
+    assert calc.capture_ratio(leveraged, market, upside=True) > 1.0
+    assert calc.capture_ratio(leveraged, market, upside=False) > 1.0
+
+
+def test_capture_is_undefined_when_the_benchmark_never_fell():
+    with pytest.raises(calc.DegenerateDataError):
+        calc.capture_ratio([0.01] * 30, [0.005] * 30, upside=False)

@@ -132,3 +132,18 @@ alternatives.
 > Heimdall is an educational portfolio-analysis tool. Its calculations are
 > estimates based on historical data and model assumptions and do not constitute
 > financial advice or guarantee future results.
+
+## A formatting bug worth remembering
+
+Until October 2026 every monetary figure in a generated report was printed as a
+percentage: a portfolio worth 178,760 INR appeared as `17,876,000.49%`, and three
+holdings as `300.00%`.
+
+The row builder chose a formatter with `result.unit is MetricUnit.CURRENCY`. That
+is true for the enum member a service writes and **false for the plain string the
+database hands back**, so in a real report every currency and count row fell
+through to the percentage branch. No test caught it, because none built a row
+from a stored result.
+
+`tests/test_reports_rows.py` now builds rows the way they arrive from the
+database, with string units. Compare stored enum values with `==`, never `is`.

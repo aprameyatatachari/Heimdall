@@ -143,6 +143,14 @@ class HoldingSummaryResponse(BaseModel):
     cost_basis: Decimal
     latest_price: Decimal | None
     latest_price_date: date | None
+    latest_price_fetched_at: datetime | None = Field(
+        default=None,
+        description=(
+            "When this price was last read from the provider, to the second. The "
+            "price date says which trading day it belongs to; this says how old "
+            "the reading is."
+        ),
+    )
     market_value: Decimal | None
     weight: float | None = Field(description="Share of portfolio value. Null when unpriced.")
     unrealized_profit_loss: Decimal | None
@@ -174,6 +182,13 @@ class PortfolioSummaryResponse(BaseModel):
     base_currency: str
     benchmark_symbol: str | None
     data_as_of: date | None
+    prices_fetched_at: datetime | None = Field(
+        default=None,
+        description=(
+            "The oldest fetch among the priced holdings: every price shown is at "
+            "least this fresh. Null when nothing is priced."
+        ),
+    )
     holdings_count: int
     priced_holdings_count: int
     unpriced_symbols: list[str] = Field(

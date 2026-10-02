@@ -7,6 +7,8 @@ import { Alert } from "@/components/Alert";
 import { Button } from "@/components/Button";
 import { Field } from "@/components/Field";
 import { Select } from "@/components/Select";
+
+import { CoverageWarning } from "./CoverageWarning";
 import { Panel } from "@/components/Panel";
 import { cx } from "@/lib/cx";
 import { formatDate, formatMoney, formatPercent } from "@/lib/format";
@@ -283,6 +285,17 @@ export function ScenarioBuilder({
 
           <ResolvedShocks holdings={holdings} shocks={parsed} currency={currency} />
         </div>
+      )}
+
+      {/* Before the run, not after it: a scenario over a window some holdings
+          do not cover still draws its charts, of the holdings that are. */}
+      {mode === "historical" && chosen && !missingData && (
+        <CoverageWarning
+          portfolioId={portfolioId}
+          start={chosen.start}
+          end={chosen.end}
+          what="scenario"
+        />
       )}
 
       {limitations.length > 0 && (

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -65,6 +65,9 @@ class HoldingSnapshot:
     latest_price: Decimal | None
     latest_price_date: date | None
     currency: str
+    # When that price was last read from the provider. The date above says which
+    # trading day the price belongs to; this says how long ago anyone looked.
+    latest_price_fetched_at: datetime | None = None
 
     @property
     def market_value(self) -> Decimal | None:
@@ -207,6 +210,7 @@ class SnapshotBuilder:
                     latest_price=latest.adjusted_close if latest is not None else None,
                     latest_price_date=latest.date if latest is not None else None,
                     currency=asset.currency,
+                    latest_price_fetched_at=(latest.fetched_at if latest is not None else None),
                 )
             )
 

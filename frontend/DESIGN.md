@@ -737,7 +737,7 @@ building the screen; do not invent an endpoint.
 | "Continue with Google / Microsoft"                 | Email + password only; no OAuth                       | Remove the buttons, or scope OAuth as new backend work    |
 | Full name, or first and last name, at registration | `RegisterRequest` accepts `email` and `password` only | Collect neither, or add a profile field to the backend    |
 | `₹` amounts                                        | Each portfolio carries its own `base_currency`        | Format from the portfolio's actual currency               |
-| Sortino ratio, bare "Alpha"                        | Neither exists; there is `benchmark_alpha_annualized` | Drop Sortino; label alpha correctly and annualized        |
+| Bare "Alpha"                                       | There is `benchmark_alpha_annualized`; Sortino exists | Label alpha as annualized and against its benchmark       |
 | Nifty 50 benchmark                                 | Benchmark is per-portfolio, fixtures ship SPY         | Use the portfolio's configured benchmark                  |
 | Mutual Funds, Bonds, Cash, Gold, REITs             | `AssetType` is `equity`, `etf`, `unknown`             | Show the three that exist; `unknown` is honest, not a bug |
 | "Direct broker integration"                        | CSV import only                                       | Remove the claim                                          |

@@ -17,6 +17,7 @@ import {
   metricMetaBoolean,
   metricMetaNumber,
   metricMetaString,
+  readAssetBetas,
   readComparisonSeries,
   readCorrelationMatrix,
   readRiskAssets,
@@ -417,6 +418,66 @@ export function RiskContributionChart({ result, locale }: ChartProps) {
             : `weight ${formatPercent(asset.weight, { locale, digits: 1 })}`;
         }}
         ariaLabel="Share of portfolio volatility contributed by each holding"
+      />
+    </ChartFrame>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Beta by holding                                                             */
+/* -------------------------------------------------------------------------- */
+
+export function BetaChart({ result, locale }: ChartProps) {
+  const assets = [...readAssetBetas(result)].sort(
+    (first, second) => (second.beta ?? 0) - (first.beta ?? 0),
+  );
+  const symbol = metricMetaString(result, "benchmark_symbol") ?? "the benchmark";
+  const number = (value: number) =>
+    new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+
+  return (
+    <ChartFrame
+      title="Beta by holding"
+      units={`Sensitivity to ${symbol}, where 1.00 moves with it`}
+      empty={assets.length === 0 ? unavailableReason(result) : undefined}
+      caption={
+        <>
+          Each holding's own beta against {symbol}. The portfolio's beta is these, weighted by
+          how much of the portfolio each one is — so one high-beta holding at a large weight can
+          set the figure on its own. A negative beta moved against the benchmark.
+        </>
+      }
+      table={{
+        columns: ["Holding", "Beta", "Weight", "Contribution to portfolio beta"],
+        rows: assets.map((asset) => [
+          asset.symbol,
+          asset.beta === null ? UNAVAILABLE : number(asset.beta),
+          asset.weight === null
+            ? UNAVAILABLE
+            : formatPercent(asset.weight, { locale, digits: 2 }),
+          asset.beta === null || asset.weight === null
+            ? UNAVAILABLE
+            : number(asset.beta * asset.weight),
+        ]),
+      }}
+    >
+      <BarChart
+        data={assets.map((asset) => ({
+          label: asset.symbol,
+          value: asset.beta,
+          color: (asset.beta ?? 0) < 0 ? "var(--color-series-2)" : "var(--color-series-1)",
+        }))}
+        formatValue={number}
+        secondary={(datum) => {
+          const asset = assets.find((item) => item.symbol === datum.label);
+          return asset?.weight === null || asset?.weight === undefined
+            ? undefined
+            : `weight ${formatPercent(asset.weight, { locale, digits: 1 })}`;
+        }}
+        ariaLabel={`Beta of each holding against ${symbol}`}
       />
     </ChartFrame>
   );

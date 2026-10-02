@@ -151,6 +151,37 @@ export function formatDateTime(
 }
 
 /**
+ * An ISO timestamp to the second: "Oct 2, 2026, 11:46:23 AM".
+ *
+ * For anything whose age matters in seconds — when a price was last read from
+ * the provider. `formatDateTime` stops at the minute, and "11:46" could be
+ * fifty-nine seconds old or one.
+ */
+export function formatDateTimeSeconds(
+  value: string | null | undefined,
+  options: FormatOptions = {},
+): string {
+  if (!value) return UNAVAILABLE;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return UNAVAILABLE;
+  return new Intl.DateTimeFormat(options.locale, {
+    dateStyle: "medium",
+    timeStyle: "medium",
+  }).format(date);
+}
+
+/** Just the time, to the second: "11:46:23 AM". For a column of same-day times. */
+export function formatTimeSeconds(
+  value: string | null | undefined,
+  options: FormatOptions = {},
+): string {
+  if (!value) return UNAVAILABLE;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return UNAVAILABLE;
+  return new Intl.DateTimeFormat(options.locale, { timeStyle: "medium" }).format(date);
+}
+
+/**
  * The sign of a decimal string, without converting it to a number.
  *
  * Used to choose a colour and a caption. "0.00" and "-0.00" are both flat.

@@ -52,9 +52,9 @@ describe("the catalogue", () => {
   });
 
   it("names alpha as the annualized figure the backend actually computes", () => {
-    // There is no bare "alpha" and no Sortino ratio. DESIGN.md section 11.
+    // There is no bare "alpha": it is always the annualized figure against
+    // the configured benchmark. DESIGN.md section 11.
     expect(METRICS["benchmark_alpha_annualized"]?.label).toMatch(/alpha versus benchmark/i);
-    expect(METRICS["sortino_ratio"]).toBeUndefined();
     expect(METRICS["alpha"]).toBeUndefined();
   });
 

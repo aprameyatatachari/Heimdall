@@ -31,6 +31,8 @@ export type MarketDataRefreshResponse = Schemas["MarketDataRefreshResponse"];
 export type AssetSearchResponse = Schemas["AssetSearchResponse"];
 export type AssetSearchItem = Schemas["AssetSearchItem"];
 export type HoldingSummary = Schemas["HoldingSummaryResponse"];
+export type CoverageResponse = Schemas["CoverageResponse"];
+export type HoldingCoverage = Schemas["HoldingCoverage"];
 
 export const portfolioKeys = {
   all: ["portfolios"] as const,
@@ -41,6 +43,7 @@ export const portfolioKeys = {
   assetSearch: (query: string, currency?: string) =>
     ["assets", "search", query, currency ?? "any"] as const,
   popularAssets: (currency: string) => ["assets", "popular", currency] as const,
+  refresh: (id: string) => ["portfolios", "refresh", id] as const,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -218,15 +221,43 @@ export function useImportPositions(portfolioId: string) {
 export function useRefreshMarketData(portfolioId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (range: { start?: string; end?: string }) =>
+    // Keyed, so the page-load refresh and the button share one pending state:
+    // pressing the button while the automatic one is in flight must not start a
+    // second request for the same prices.
+    mutationKey: portfolioKeys.refresh(portfolioId),
+    mutationFn: (range: { start?: string; end?: string; quick?: boolean }) =>
       api.post<MarketDataRefreshResponse>(
         `/portfolios/${portfolioId}/market-data/refresh`,
         undefined,
-        { params: { start: range.start, end: range.end } },
+        { params: { start: range.start, end: range.end, quick: range.quick || undefined } },
       ),
     onSuccess: () => {
       // New prices change every derived figure, not just the holdings table.
       invalidateHoldings(queryClient, portfolioId);
+      void queryClient.invalidateQueries({ queryKey: ["price-coverage", portfolioId] });
     },
+  });
+}
+
+/**
+ * How much of a window each holding's stored prices cover.
+ *
+ * Asked before an analysis or a scenario runs, so the screen can say which
+ * holdings have nothing for the period while there is still a decision to make.
+ * It fetches no prices, which is the point: a warning produced by fixing the
+ * problem would never be seen.
+ */
+export function usePriceCoverage(
+  portfolioId: string,
+  window: { start: string; end: string } | null,
+) {
+  return useQuery({
+    queryKey: ["price-coverage", portfolioId, window?.start ?? "", window?.end ?? ""],
+    queryFn: () =>
+      api.get<CoverageResponse>(`/portfolios/${portfolioId}/market-data/coverage`, {
+        params: { start: window?.start, end: window?.end },
+      }),
+    enabled: Boolean(portfolioId) && window !== null && window.start <= window.end,
+    staleTime: 15_000,
   });
 }

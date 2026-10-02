@@ -68,6 +68,14 @@ class PriceBar(Base):
         server_default=text("now()"),
         nullable=False,
     )
+    # When this bar was last read from the provider. `created_at` never moves; a
+    # live provider revises today's bar all session, and this is what says how
+    # old the price on screen actually is.
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("now()"),
+        nullable=False,
+    )
 
     __table_args__ = (
         # Idempotent ingestion depends on this: re-fetching a range updates rather

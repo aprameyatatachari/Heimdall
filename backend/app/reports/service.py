@@ -76,11 +76,21 @@ PERFORMANCE_METRICS = (
     ("benchmark_correlation", "Correlation with benchmark"),
     ("tracking_error", "Tracking error (annualized)"),
     ("information_ratio", "Information ratio"),
+    ("treynor_ratio", "Treynor ratio (annualized)"),
+    ("upside_capture", "Upside capture"),
+    ("downside_capture", "Downside capture"),
+    ("best_period_return", "Best single period"),
+    ("worst_period_return", "Worst single period"),
 )
 RISK_METRICS = (
     ("volatility_daily", "Volatility (daily)"),
     ("volatility_annualized", "Volatility (annualized)"),
     ("sharpe_ratio", "Sharpe ratio (annualized)"),
+    ("sortino_ratio", "Sortino ratio (annualized)"),
+    ("downside_deviation", "Downside deviation (annualized)"),
+    ("calmar_ratio", "Calmar ratio"),
+    ("skewness", "Skewness of returns"),
+    ("excess_kurtosis", "Excess kurtosis of returns"),
     ("max_drawdown", "Maximum drawdown"),
     ("current_drawdown", "Current drawdown"),
     ("value_at_risk_historical", "Value at Risk (historical)"),
@@ -89,6 +99,37 @@ RISK_METRICS = (
     ("portfolio_volatility_from_covariance", "Volatility from covariance"),
     ("average_pairwise_correlation", "Average pairwise correlation"),
 )
+
+
+# Metrics whose stored unit is "ratio" but which are plain numbers rather than
+# fractions of something. A Sharpe ratio of 0.49 is not 49%.
+PLAIN_RATIO_METRICS = frozenset(
+    {
+        "benchmark_beta",
+        "sharpe_ratio",
+        "sortino_ratio",
+        "calmar_ratio",
+        "information_ratio",
+        "average_pairwise_correlation",
+        "benchmark_correlation",
+        "skewness",
+        "excess_kurtosis",
+        "upside_capture",
+        "downside_capture",
+    }
+)
+
+# How a signal's observed value and threshold read, by the unit its rule uses.
+# The stored figures are raw fractions and counts; printed raw beside an internal
+# unit code they said "0.2804 vs 0.2000 (percent_decline_from_peak)".
+SIGNAL_UNIT_WORDS = {
+    "percent_of_portfolio_value": "of portfolio value",
+    "percent_decline_from_peak": "below peak",
+    "ratio_to_baseline": "times baseline",
+    "correlation_coefficient": "correlation",
+    "expected_trading_days": "trading days",
+    "count": "holdings",
+}
 
 
 class ReportNotFoundError(NotFoundError):
@@ -426,10 +467,10 @@ class ReportService:
 
         rows = [
             [
-                signal.severity,
+                str(signal.severity).capitalize(),
                 signal.title,
                 _signal_metric(signal),
-                signal.status,
+                str(signal.status).capitalize(),
                 signal.data_as_of.isoformat() if signal.data_as_of else "unknown",
             ]
             for signal in signals
@@ -446,9 +487,22 @@ class ReportService:
         )
 
 
+def _signal_value(value: Decimal, unit: str) -> str:
+    """One signal figure, in the unit its rule measures."""
+    if unit.startswith("percent_"):
+        return format_percent(value)
+    if unit in {"expected_trading_days", "count"}:
+        return f"{int(value)}"
+    return format_ratio(value)
+
+
 def _signal_metric(signal: WarningSignal) -> str:
-    """Observed value against its threshold, with the unit."""
-    return f"{signal.observed_value:.4f} vs {signal.threshold_value:.4f} ({signal.unit})"
+    """Observed value against its threshold, said the way a reader would say it."""
+    unit = str(signal.unit)
+    words = SIGNAL_UNIT_WORDS.get(unit, unit.replace("_", " "))
+    observed = _signal_value(signal.observed_value, unit)
+    threshold = _signal_value(signal.threshold_value, unit)
+    return f"{observed} against a threshold of {threshold} {words}"
 
 
 def _period(run: AnalysisRun | None) -> str:
@@ -495,17 +549,16 @@ def _metric_rows(
         if metadata.get("assumption"):
             note_parts.append(str(metadata["assumption"]))
 
-        if result.unit is MetricUnit.CURRENCY:
+        # Compared by value, not identity. A unit read back from the database is
+        # a plain string, not the enum member it was written as, and `is` was
+        # false for every row: money and counts fell through to the percentage
+        # branch, and a portfolio worth 178,760 was printed as 17,876,000.49%.
+        stored_unit = str(result.unit)
+        if stored_unit == MetricUnit.CURRENCY:
             value, unit = format_money(result.value, currency), currency
-        elif result.unit is MetricUnit.COUNT:
+        elif stored_unit == MetricUnit.COUNT:
             value, unit = f"{int(result.value)}", "count"
-        elif metric in {
-            "benchmark_beta",
-            "sharpe_ratio",
-            "information_ratio",
-            "average_pairwise_correlation",
-            "benchmark_correlation",
-        }:
+        elif metric in PLAIN_RATIO_METRICS:
             value, unit = format_ratio(result.value), "ratio"
         else:
             signed = metric in {
@@ -515,6 +568,8 @@ def _metric_rows(
                 "benchmark_annualized_return",
                 "max_drawdown",
                 "current_drawdown",
+                "best_period_return",
+                "worst_period_return",
             }
             value, unit = format_percent(result.value, signed=signed), "percent"
 
@@ -576,8 +631,8 @@ def _risk_contribution_block(results: dict[str, RiskResult]) -> TableBlock:
         [
             asset["symbol"],
             format_percent(asset["weight"]),
-            format_ratio(asset["marginal_contribution"]),
-            format_ratio(asset["component_contribution"]),
+            format_percent(asset["marginal_contribution"]),
+            format_percent(asset["component_contribution"]),
             format_percent(asset["share_of_risk"]),
         ]
         for asset in assets

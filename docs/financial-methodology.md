@@ -111,6 +111,44 @@ test `test_a_rate_is_deannualized_geometrically_not_by_division` pins this.
 When excess returns have no variability the ratio is **undefined** and reported as
 unavailable. A large sentinel would read as an excellent result.
 
+## Downside deviation and the Sortino ratio
+
+```text
+shortfall(t)       = min(return(t) - periodic_risk_free_rate, 0)
+downside_deviation = sqrt(mean(shortfall ^ 2)) x sqrt(periods_per_year)
+Sortino            = mean(excess) x periods_per_year / downside_deviation
+```
+
+The mean is taken over **every** period, not only the losing ones. Dividing by
+the count of losing periods instead makes a series with one bad day look as risky
+as one with a hundred, and it is not what the Sortino ratio is defined on.
+
+Sortino is **undefined** when no period fell short, and is reported as
+unavailable. A very large number would read as a very good result rather than as
+"there were no losses to measure".
+
+## Calmar ratio
+
+```text
+Calmar = annualized_return / abs(maximum_drawdown)
+```
+
+Undefined for a window with no drawdown.
+
+## Shape of the return distribution
+
+Skewness and excess kurtosis, both bias-corrected sample estimates
+(`scipy.stats`, `bias=False`), on at least 30 observations.
+
+- **Skewness** below zero means the left tail is the longer one: the large moves,
+  when they came, were mostly losses.
+- **Excess kurtosis** above zero means extreme periods were more common than a
+  normal distribution expects. This is the case in which **parametric VaR
+  understates the loss**, and the two figures are worth reading together.
+
+The largest single gain and largest single loss are reported with their dates.
+An average hides them; a holder remembers them.
+
 ## Drawdown
 
 ```text
@@ -275,6 +313,23 @@ unavailable. A zero tracking error makes the information ratio undefined.
 
 The benchmark's price history is fetched if it is not already cached, so a
 comparison does not silently require a separate refresh.
+
+### Per-holding beta, Treynor and capture
+
+```text
+beta(asset)      = covariance(asset, benchmark) / variance(benchmark)
+Treynor          = (annualized_return - annual_risk_free_rate) / beta
+upside_capture   = compounded portfolio return over the periods the benchmark rose
+                   / compounded benchmark return over the same periods
+downside_capture = the same, over the periods the benchmark fell
+```
+
+Each holding's own beta is returned beside the portfolio's, with its weight. The
+portfolio beta is the weighted sum of them, and a test pins that identity — it is
+what makes the breakdown meaningful rather than decorative.
+
+Treynor is undefined when beta is zero. A capture ratio is undefined when the
+benchmark had no periods of that kind in the window.
 
 ## Stress testing
 
