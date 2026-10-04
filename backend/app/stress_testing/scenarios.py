@@ -403,6 +403,28 @@ HISTORICAL_SCENARIOS: Final[tuple[HistoricalScenario, ...]] = (
         start=date(2026, 8, 3),
         end=date(2026, 10, 1),
     ),
+    HistoricalScenario(
+        key="ai_trade_reversal_2024",
+        name="Mid-2024 AI and semiconductor sell-off",
+        description=(
+            "The decline in technology and semiconductor shares between the Nasdaq "
+            "Composite's 10 July 2024 high and its 7 August 2024 low, as investors "
+            "questioned the returns on spending on artificial intelligence."
+        ),
+        start=date(2024, 7, 10),
+        end=date(2024, 8, 7),
+    ),
+    HistoricalScenario(
+        key="deepseek_shock_2025",
+        name="DeepSeek shock",
+        description=(
+            "The single-session fall in semiconductor and AI-infrastructure shares on "
+            "27 January 2025, after the Chinese developer DeepSeek released a low-cost "
+            "AI model. Nvidia fell about 17% that day."
+        ),
+        start=date(2025, 1, 24),
+        end=date(2025, 1, 27),
+    ),
 )
 
 SCENARIOS_BY_KEY: Final[dict[str, HistoricalScenario]] = {

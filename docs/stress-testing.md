@@ -58,6 +58,8 @@ label is corrected once:
 | `india_correction_early_2026` | Early 2026 correction (India) | 2026-01-02 to 2026-03-30 |
 | `technology_decline_mid_2026` | Mid-2026 technology decline | 2026-06-02 to 2026-07-29 |
 | `india_decline_late_2026` | August-September 2026 decline (India) | 2026-08-03 to 2026-10-01 |
+| `ai_trade_reversal_2024` | Mid-2024 AI and semiconductor sell-off | 2024-07-10 to 2024-08-07 |
+| `deepseek_shock_2025` | DeepSeek shock | 2025-01-24 to 2025-01-27 |
 
 Windows for global episodes follow the S&P 500's peak and trough, and those marked
 (India) follow the Nifty 50's, or the Sensex's for the two episodes before 2007. A
