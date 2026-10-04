@@ -35,6 +35,15 @@ label is corrected once:
 | `rate_rises_2022` | Rapid interest-rate increases | 2022-01-03 to 2022-10-14 |
 | `q4_2018_selloff` | Late-2018 technology sell-off | 2018-09-20 to 2018-12-24 |
 | `china_devaluation_2015` | August 2015 volatility shock | 2015-08-10 to 2015-08-25 |
+| `india_election_shock_2004` | 2004 election result sell-off (India) | 2004-05-10 to 2004-05-17 |
+| `india_correction_2006` | May-June 2006 correction (India) | 2006-05-10 to 2006-06-14 |
+| `india_financial_crisis_2008` | 2008 financial crisis (India) | 2008-01-08 to 2008-10-27 |
+| `india_bear_market_2010_2011` | 2010-11 inflation and rate-rise decline (India) | 2010-11-05 to 2011-12-20 |
+| `india_rupee_crisis_2013` | 2013 rupee crisis (India) | 2013-05-17 to 2013-08-28 |
+| `india_correction_2015_2016` | 2015-16 correction (India) | 2015-03-03 to 2016-02-25 |
+| `india_covid_crash_2020` | COVID-19 crash (India) | 2020-01-14 to 2020-03-23 |
+| `india_correction_2021_2022` | 2021-22 correction (India) | 2021-10-18 to 2022-06-17 |
+| `india_election_result_2024` | 2024 election result day (India) | 2024-06-03 to 2024-06-04 |
 | `dot_com_bust_2000_2002` | Dot-com bust | 2000-03-24 to 2002-10-09 |
 | `us_downgrade_euro_crisis_2011` | 2011 US downgrade and euro-area debt crisis | 2011-04-29 to 2011-10-03 |
 | `taper_tantrum_2013` | Taper tantrum | 2013-05-22 to 2013-06-24 |
@@ -45,10 +54,17 @@ label is corrected once:
 | `yen_carry_unwind_2024` | August 2024 carry-trade unwind | 2024-07-16 to 2024-08-05 |
 | `india_correction_2024_2025` | 2024-25 equity correction (India) | 2024-09-26 to 2025-03-04 |
 | `tariff_shock_2025` | 2025 tariff shock | 2025-02-19 to 2025-04-08 |
+| `us_correction_early_2026` | Early 2026 correction | 2026-01-27 to 2026-03-30 |
+| `india_correction_early_2026` | Early 2026 correction (India) | 2026-01-02 to 2026-03-30 |
+| `technology_decline_mid_2026` | Mid-2026 technology decline | 2026-06-02 to 2026-07-29 |
+| `india_decline_late_2026` | August-September 2026 decline (India) | 2026-08-03 to 2026-10-01 |
 
 Windows for global episodes follow the S&P 500's peak and trough, and those marked
-(India) follow the Nifty 50's. A holding listed elsewhere is measured over the same
-dates, which may not be its own peak or trough. An episode older than a holding's
+(India) follow the Nifty 50's, or the Sensex's for the two episodes before 2007. A
+holding listed elsewhere is measured over the same dates, which may not be its own
+peak or trough. The 2026 entries are dated from index closes alone and attribute no
+cause; the last one ends at the lowest close when it was written, so the episode
+may not have ended. An episode older than a holding's
 listing has no return for it, and that holding is excluded and named.
 
 Every run stores the full definition — key, name, description, and **exact dates** —

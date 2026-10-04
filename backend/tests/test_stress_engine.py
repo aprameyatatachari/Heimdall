@@ -368,7 +368,7 @@ def test_scenario_windows_are_real_past_episodes():
     """
     for scenario in HISTORICAL_SCENARIOS:
         assert scenario.start >= date(1990, 1, 1), scenario.key
-        assert scenario.end <= date(2025, 4, 8), scenario.key
+        assert scenario.end <= date(2026, 10, 1), scenario.key
 
 
 def test_the_catalogue_covers_both_supported_markets():

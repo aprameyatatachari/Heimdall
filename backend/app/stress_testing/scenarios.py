@@ -115,9 +115,10 @@ class HistoricalScenario:
 
 # The catalogue. Dates are the widely cited peak-to-trough windows for each
 # episode; they are stated so a reader can check them. Windows for global
-# episodes follow the S&P 500, and those marked (India) follow the Nifty 50; a
-# holding listed elsewhere is measured over the same dates, which may not be its
-# own peak or trough.
+# episodes follow the S&P 500, and those marked (India) follow the Nifty 50, or
+# the Sensex before 2007. A holding listed elsewhere is measured over the same
+# dates, which may not be its own peak or trough. The 2026 entries are dated
+# from index closes alone and say so, rather than naming a cause.
 HISTORICAL_SCENARIOS: Final[tuple[HistoricalScenario, ...]] = (
     HistoricalScenario(
         key="global_financial_crisis_2007_2009",
@@ -269,6 +270,138 @@ HISTORICAL_SCENARIOS: Final[tuple[HistoricalScenario, ...]] = (
         ),
         start=date(2025, 2, 19),
         end=date(2025, 4, 8),
+    ),
+    HistoricalScenario(
+        key="india_election_shock_2004",
+        name="2004 election result sell-off (India)",
+        description=(
+            "The fall in Indian equities over the week of the May 2004 general election "
+            "result, ending with the 17 May session in which trading was halted twice."
+        ),
+        start=date(2004, 5, 10),
+        end=date(2004, 5, 17),
+    ),
+    HistoricalScenario(
+        key="india_correction_2006",
+        name="May-June 2006 correction (India)",
+        description=(
+            "The five-week decline in Indian equities from the May 2006 high to the June 2006 "
+            "low, during a global sell-off in emerging markets and commodities."
+        ),
+        start=date(2006, 5, 10),
+        end=date(2006, 6, 14),
+    ),
+    HistoricalScenario(
+        key="india_financial_crisis_2008",
+        name="2008 financial crisis (India)",
+        description=(
+            "The decline in Indian equities between the January 2008 record high and the "
+            "October 2008 low, as foreign investors withdrew during the global banking crisis."
+        ),
+        start=date(2008, 1, 8),
+        end=date(2008, 10, 27),
+    ),
+    HistoricalScenario(
+        key="india_bear_market_2010_2011",
+        name="2010-11 inflation and rate-rise decline (India)",
+        description=(
+            "The decline in Indian equities between the November 2010 high and the December "
+            "2011 low, during repeated policy-rate increases and a weakening rupee."
+        ),
+        start=date(2010, 11, 5),
+        end=date(2011, 12, 20),
+    ),
+    HistoricalScenario(
+        key="india_rupee_crisis_2013",
+        name="2013 rupee crisis (India)",
+        description=(
+            "The decline in Indian equities between the May 2013 high and the late-August 2013 "
+            "low, as the rupee fell to a record low against the US dollar."
+        ),
+        start=date(2013, 5, 17),
+        end=date(2013, 8, 28),
+    ),
+    HistoricalScenario(
+        key="india_correction_2015_2016",
+        name="2015-16 correction (India)",
+        description=(
+            "The decline in Indian equities between the March 2015 record high and the "
+            "February 2016 low, alongside falling commodity prices and stress in bank loans."
+        ),
+        start=date(2015, 3, 3),
+        end=date(2016, 2, 25),
+    ),
+    HistoricalScenario(
+        key="india_covid_crash_2020",
+        name="COVID-19 crash (India)",
+        description=(
+            "The decline in Indian equities between the January 2020 record high and the 23 "
+            "March 2020 low, the session before the national lockdown began."
+        ),
+        start=date(2020, 1, 14),
+        end=date(2020, 3, 23),
+    ),
+    HistoricalScenario(
+        key="india_correction_2021_2022",
+        name="2021-22 correction (India)",
+        description=(
+            "The decline in Indian equities between the October 2021 record high and the June "
+            "2022 low, as global interest rates rose and foreign investors sold."
+        ),
+        start=date(2021, 10, 18),
+        end=date(2022, 6, 17),
+    ),
+    HistoricalScenario(
+        key="india_election_result_2024",
+        name="2024 election result day (India)",
+        description=(
+            "The single-session fall in Indian equities on 4 June 2024, when the general "
+            "election result was closer than exit polls had indicated."
+        ),
+        start=date(2024, 6, 3),
+        end=date(2024, 6, 4),
+    ),
+    HistoricalScenario(
+        key="us_correction_early_2026",
+        name="Early 2026 correction",
+        description=(
+            "The decline in US equities between the S&P 500's 27 January 2026 high and its 30 "
+            "March 2026 low. Dated from index closes; no cause is attributed here."
+        ),
+        start=date(2026, 1, 27),
+        end=date(2026, 3, 30),
+    ),
+    HistoricalScenario(
+        key="india_correction_early_2026",
+        name="Early 2026 correction (India)",
+        description=(
+            "The decline in Indian equities between the Nifty 50's 2 January 2026 high and its "
+            "30 March 2026 low. Dated from index closes; no cause is attributed here."
+        ),
+        start=date(2026, 1, 2),
+        end=date(2026, 3, 30),
+    ),
+    HistoricalScenario(
+        key="technology_decline_mid_2026",
+        name="Mid-2026 technology decline",
+        description=(
+            "The decline in US technology shares between the Nasdaq Composite's 2 June 2026 "
+            "high and its 29 July 2026 low. Dated from index closes; no cause is attributed "
+            "here."
+        ),
+        start=date(2026, 6, 2),
+        end=date(2026, 7, 29),
+    ),
+    HistoricalScenario(
+        key="india_decline_late_2026",
+        name="August-September 2026 decline (India)",
+        description=(
+            "The decline in Indian equities from the Nifty 50's 3 August 2026 high to 1 "
+            "October 2026, its lowest close when this entry was written. The episode may not "
+            "have ended."
+        ),
+        start=date(2026, 8, 3),
+        end=date(2026, 10, 1),
     ),
 )
 
