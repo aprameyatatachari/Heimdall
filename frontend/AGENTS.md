@@ -74,17 +74,18 @@ signal filters, chart range. No global store.
 
 ### Inner Realm — authenticated
 
-| Route                           | Screen                                      |
-| ------------------------------- | ------------------------------------------- |
-| `/app`                          | Redirects to `/app/portfolios`              |
-| `/app/portfolios`               | Portfolio list                              |
-| `/app/portfolios/:id`           | Portfolio detail — overview                 |
-| `/app/portfolios/:id/holdings`  | Holdings table, add/edit/delete, CSV import |
-| `/app/portfolios/:id/analytics` | Analytics dashboard                         |
-| `/app/portfolios/:id/stress`    | Stress testing                              |
-| `/app/portfolios/:id/signals`   | Gjallarhorn signals and alert rules         |
-| `/app/portfolios/:id/reports`   | Report generation and history               |
-| `/app/settings`                 | Account                                     |
+| Route                                                           | Screen                                      |
+| --------------------------------------------------------------- | ------------------------------------------- |
+| `/app`                                                          | Home: every portfolio, and everything held  |
+| `/app/analytics`, `/app/stress`, `/app/signals`, `/app/reports` | That section of the portfolio last opened   |
+| `/app/portfolios`                                               | Portfolio list                              |
+| `/app/portfolios/:id`                                           | Portfolio detail — overview                 |
+| `/app/portfolios/:id/holdings`                                  | Holdings table, add/edit/delete, CSV import |
+| `/app/portfolios/:id/analytics`                                 | Analytics dashboard                         |
+| `/app/portfolios/:id/stress`                                    | Stress testing                              |
+| `/app/portfolios/:id/signals`                                   | Gjallarhorn signals and alert rules         |
+| `/app/portfolios/:id/reports`                                   | Report generation and history               |
+| `/app/settings`                                                 | Account                                     |
 
 Unauthenticated access to `/app/*` redirects to `/login?next=<path>` and returns
 there after sign-in. Authenticated access to `/login` or `/register` redirects to
@@ -199,6 +200,32 @@ responses (`rate_limited`) show the retry window rather than a generic failure.
 
 The submit button enters a pending state and stays disabled until the request
 settles, so a double-press cannot create two accounts.
+
+### 6.3a Home — `/app`
+
+Each portfolio is a card carrying its own figures, so nothing has to be opened to
+see how it is doing: market value, profit or loss, return on cost, cost basis,
+largest holding, the date its prices reach, and its count of open signals. They
+come from `GET /portfolios/{id}/summary` and `GET /portfolios/{id}/signals/summary`
+under the same query keys the portfolio's own screens use.
+
+Below the cards, **everything held** is added up across portfolios: one total and
+one bar chart per currency, with a holding that sits in more than one portfolio
+added together. **Currencies are never combined.** There is no exchange rate in
+this application, so rupees and dollars are totalled separately and the screen
+says so. An unpriced holding is left out of the totals and named, not counted as
+zero. The chart has its table alternative like every other.
+
+The home page does not list a portfolio's sections. The navigation already does.
+
+**Main navigation.** Analytics, stress test, signals and reports each belong to a
+portfolio. Inside one, those links lead to that portfolio's sections. Anywhere
+else they lead to `/app/<section>`, which opens that section of the portfolio
+last opened in this browser, or of the first one, or the portfolio list when
+there is none. The item for the page being read carries `aria-current="page"` and
+is gold, the same gold a link takes on hover; Portfolios is current for the list
+and for a portfolio's overview and holdings, and nothing is current on the home
+page.
 
 ### 6.4 Portfolio list — `/app/portfolios`
 

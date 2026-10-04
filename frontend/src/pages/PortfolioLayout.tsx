@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useParams } from "react-router-dom";
 
 import { usePortfolio, usePortfolioSummary } from "@/api/portfolios";
@@ -13,6 +13,7 @@ import { useDeletePortfolio } from "@/api/portfolios";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { SIGNAL_POLL_MS, useNewSignals } from "@/hooks/useNewSignals";
 import { cx } from "@/lib/cx";
+import { rememberPortfolio } from "@/lib/lastPortfolio";
 import { useFadeIn } from "@/lib/motion";
 import { useNavigate } from "react-router-dom";
 
@@ -80,6 +81,13 @@ export function PortfolioLayout() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useDocumentTitle(portfolio.data?.name ?? "Portfolio");
+
+  // Remembered only once it has loaded, so an address that leads nowhere is
+  // never what the main navigation returns to.
+  const loadedId = portfolio.data?.id;
+  useEffect(() => {
+    if (loadedId) rememberPortfolio(loadedId);
+  }, [loadedId]);
 
   if (portfolio.isPending) return <Loading label="Loading portfolio" />;
   if (portfolio.isError) {

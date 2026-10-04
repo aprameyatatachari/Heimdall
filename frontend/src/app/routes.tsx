@@ -16,6 +16,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import { MethodologyPage } from "@/pages/MethodologyPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { RegisterPage } from "@/pages/RegisterPage";
+import { SectionRedirect } from "@/pages/SectionRedirect";
 import { AppShell } from "@/pages/parts/AppShell";
 
 /**
@@ -46,6 +47,12 @@ export function AppRoutes() {
             <Route path="signals" element={<PortfolioSignalsTab />} />
             <Route path="reports" element={<PortfolioReportsTab />} />
           </Route>
+          {/* A section named without a portfolio opens it for the portfolio last
+              looked at. */}
+          <Route path="analytics" element={<SectionRedirect section="analytics" />} />
+          <Route path="stress" element={<SectionRedirect section="stress" />} />
+          <Route path="signals" element={<SectionRedirect section="signals" />} />
+          <Route path="reports" element={<SectionRedirect section="reports" />} />
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Route>
       </Route>

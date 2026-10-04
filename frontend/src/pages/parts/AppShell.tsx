@@ -1,25 +1,59 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "@/auth/useAuth";
 import { Disclaimer } from "@/components/Disclaimer";
 import { Wordmark } from "@/components/Wordmark";
 import { cx } from "@/lib/cx";
+import { PORTFOLIO_SECTIONS, portfolioRoute, type PortfolioSection } from "@/lib/lastPortfolio";
 
-// Phase 9 onward fills these in. They are listed now so the shell's navigation
-// is real rather than a placeholder that has to be rebuilt later.
-const NAV = [
-  { to: "/app/portfolios", label: "Portfolios" },
-  { to: "/app/analytics", label: "Analytics" },
-  { to: "/app/stress", label: "Stress test" },
-  { to: "/app/signals", label: "Signals" },
-  { to: "/app/reports", label: "Reports" },
-];
+const SECTION_LABELS: Record<PortfolioSection, string> = {
+  analytics: "Analytics",
+  stress: "Stress test",
+  signals: "Signals",
+  reports: "Reports",
+};
 
-function navClass({ isActive }: { isActive: boolean }): string {
+interface NavItem {
+  to: string;
+  label: string;
+  current: boolean;
+}
+
+/**
+ * The main navigation, resolved against where the reader is.
+ *
+ * Analytics, stress tests, signals and reports each belong to one portfolio.
+ * Inside a portfolio the links lead to that portfolio's own sections; anywhere
+ * else they lead to `/app/<section>`, which opens the section of the portfolio
+ * last looked at. Exactly one item is current: the section being read, or
+ * Portfolios for the list and for a portfolio's overview and holdings.
+ */
+function navItems(pathname: string): NavItem[] {
+  const route = portfolioRoute(pathname);
+  const section = PORTFOLIO_SECTIONS.find(
+    (item) => item === route?.section || pathname === `/app/${item}`,
+  );
+
+  return [
+    {
+      to: "/app/portfolios",
+      label: "Portfolios",
+      current: pathname.startsWith("/app/portfolios") && !section,
+    },
+    ...PORTFOLIO_SECTIONS.map((item) => ({
+      to: route ? `/app/portfolios/${route.id}/${item}` : `/app/${item}`,
+      label: SECTION_LABELS[item],
+      current: section === item,
+    })),
+  ];
+}
+
+/** The page being read is in gold, the same gold a link takes on hover. */
+function navClass(current: boolean): string {
   return cx(
     "rounded-md px-3 py-2 text-sm transition-colors",
-    isActive ? "text-gold bg-surface-2" : "text-ink-muted hover:text-ink hover:bg-surface-2",
+    current ? "text-gold" : "text-ink-muted hover:text-gold",
   );
 }
 
@@ -29,6 +63,7 @@ export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement | null>(null);
+  const nav = navItems(location.pathname);
 
   // A route change closes any open menu, so navigating never leaves a panel
   // hanging over the new page.
@@ -62,10 +97,15 @@ export function AppShell() {
           </Link>
 
           <nav aria-label="Main" className="hidden flex-1 items-center gap-1 lg:flex">
-            {NAV.map((item) => (
-              <NavLink key={item.to} to={item.to} className={navClass}>
+            {nav.map((item) => (
+              <Link
+                key={item.label}
+                to={item.to}
+                aria-current={item.current ? "page" : undefined}
+                className={navClass(item.current)}
+              >
                 {item.label}
-              </NavLink>
+              </Link>
             ))}
           </nav>
 
@@ -118,11 +158,15 @@ export function AppShell() {
             className="border-line bg-abyss border-t px-4 py-3 lg:hidden"
           >
             <ul className="flex flex-col gap-1">
-              {NAV.map((item) => (
-                <li key={item.to}>
-                  <NavLink to={item.to} className={navClass}>
+              {nav.map((item) => (
+                <li key={item.label}>
+                  <Link
+                    to={item.to}
+                    aria-current={item.current ? "page" : undefined}
+                    className={navClass(item.current)}
+                  >
                     {item.label}
-                  </NavLink>
+                  </Link>
                 </li>
               ))}
             </ul>
