@@ -35,6 +35,21 @@ label is corrected once:
 | `rate_rises_2022` | Rapid interest-rate increases | 2022-01-03 to 2022-10-14 |
 | `q4_2018_selloff` | Late-2018 technology sell-off | 2018-09-20 to 2018-12-24 |
 | `china_devaluation_2015` | August 2015 volatility shock | 2015-08-10 to 2015-08-25 |
+| `dot_com_bust_2000_2002` | Dot-com bust | 2000-03-24 to 2002-10-09 |
+| `us_downgrade_euro_crisis_2011` | 2011 US downgrade and euro-area debt crisis | 2011-04-29 to 2011-10-03 |
+| `taper_tantrum_2013` | Taper tantrum | 2013-05-22 to 2013-06-24 |
+| `brexit_referendum_2016` | Brexit referendum | 2016-06-23 to 2016-06-27 |
+| `india_demonetisation_2016` | Demonetisation sell-off (India) | 2016-11-08 to 2016-12-26 |
+| `volatility_shock_feb_2018` | February 2018 volatility shock | 2018-01-26 to 2018-02-08 |
+| `india_nbfc_crisis_2018` | Non-bank lender crisis (India) | 2018-08-28 to 2018-10-26 |
+| `yen_carry_unwind_2024` | August 2024 carry-trade unwind | 2024-07-16 to 2024-08-05 |
+| `india_correction_2024_2025` | 2024-25 equity correction (India) | 2024-09-26 to 2025-03-04 |
+| `tariff_shock_2025` | 2025 tariff shock | 2025-02-19 to 2025-04-08 |
+
+Windows for global episodes follow the S&P 500's peak and trough, and those marked
+(India) follow the Nifty 50's. A holding listed elsewhere is measured over the same
+dates, which may not be its own peak or trough. An episode older than a holding's
+listing has no return for it, and that holding is excluded and named.
 
 Every run stores the full definition — key, name, description, and **exact dates** —
 so a stored result stays explainable even if the catalogue changes later.

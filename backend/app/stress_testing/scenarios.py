@@ -114,7 +114,10 @@ class HistoricalScenario:
 
 
 # The catalogue. Dates are the widely cited peak-to-trough windows for each
-# episode; they are stated so a reader can check them.
+# episode; they are stated so a reader can check them. Windows for global
+# episodes follow the S&P 500, and those marked (India) follow the Nifty 50; a
+# holding listed elsewhere is measured over the same dates, which may not be its
+# own peak or trough.
 HISTORICAL_SCENARIOS: Final[tuple[HistoricalScenario, ...]] = (
     HistoricalScenario(
         key="global_financial_crisis_2007_2009",
@@ -166,6 +169,106 @@ HISTORICAL_SCENARIOS: Final[tuple[HistoricalScenario, ...]] = (
         ),
         start=date(2015, 8, 10),
         end=date(2015, 8, 25),
+    ),
+    HistoricalScenario(
+        key="dot_com_bust_2000_2002",
+        name="Dot-com bust",
+        description=(
+            "The decline in US equities between the March 2000 high and the October 2002 low, "
+            "as technology and internet share valuations collapsed."
+        ),
+        start=date(2000, 3, 24),
+        end=date(2002, 10, 9),
+    ),
+    HistoricalScenario(
+        key="us_downgrade_euro_crisis_2011",
+        name="2011 US downgrade and euro-area debt crisis",
+        description=(
+            "The equity decline between the April 2011 high and the October 2011 low, spanning "
+            "the US credit-rating downgrade and the euro-area sovereign debt crisis."
+        ),
+        start=date(2011, 4, 29),
+        end=date(2011, 10, 3),
+    ),
+    HistoricalScenario(
+        key="taper_tantrum_2013",
+        name="Taper tantrum",
+        description=(
+            "The sell-off in bonds, equities and emerging-market assets after the US Federal "
+            "Reserve signalled in May 2013 that it would slow its asset purchases."
+        ),
+        start=date(2013, 5, 22),
+        end=date(2013, 6, 24),
+    ),
+    HistoricalScenario(
+        key="brexit_referendum_2016",
+        name="Brexit referendum",
+        description=(
+            "The two trading days after the United Kingdom voted on 23 June 2016 to leave the "
+            "European Union, measured from the close before the result was known."
+        ),
+        start=date(2016, 6, 23),
+        end=date(2016, 6, 27),
+    ),
+    HistoricalScenario(
+        key="india_demonetisation_2016",
+        name="Demonetisation sell-off (India)",
+        description=(
+            "The decline in Indian equities from the announcement on 8 November 2016 that "
+            "high-value banknotes were withdrawn, to the low in late December 2016."
+        ),
+        start=date(2016, 11, 8),
+        end=date(2016, 12, 26),
+    ),
+    HistoricalScenario(
+        key="volatility_shock_feb_2018",
+        name="February 2018 volatility shock",
+        description=(
+            "The two-week global equity correction from the January 2018 high, during which "
+            "products betting on low volatility were wiped out."
+        ),
+        start=date(2018, 1, 26),
+        end=date(2018, 2, 8),
+    ),
+    HistoricalScenario(
+        key="india_nbfc_crisis_2018",
+        name="Non-bank lender crisis (India)",
+        description=(
+            "The decline in Indian equities between the August 2018 high and the October 2018 "
+            "low, after defaults at IL&FS spread stress through non-bank lenders."
+        ),
+        start=date(2018, 8, 28),
+        end=date(2018, 10, 26),
+    ),
+    HistoricalScenario(
+        key="yen_carry_unwind_2024",
+        name="August 2024 carry-trade unwind",
+        description=(
+            "The global equity sell-off between the mid-July 2024 high and 5 August 2024, as a "
+            "rise in Japanese interest rates forced leveraged positions to be closed."
+        ),
+        start=date(2024, 7, 16),
+        end=date(2024, 8, 5),
+    ),
+    HistoricalScenario(
+        key="india_correction_2024_2025",
+        name="2024-25 equity correction (India)",
+        description=(
+            "The decline in Indian equities between the September 2024 record high and the "
+            "March 2025 low, during sustained selling by foreign investors."
+        ),
+        start=date(2024, 9, 26),
+        end=date(2025, 3, 4),
+    ),
+    HistoricalScenario(
+        key="tariff_shock_2025",
+        name="2025 tariff shock",
+        description=(
+            "The decline in global equities between the February 2025 high and the 8 April "
+            "2025 low, following the announcement of broad US import tariffs."
+        ),
+        start=date(2025, 2, 19),
+        end=date(2025, 4, 8),
     ),
 )
 

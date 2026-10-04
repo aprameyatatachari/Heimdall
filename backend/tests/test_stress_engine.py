@@ -359,11 +359,23 @@ def test_every_scenario_is_described():
         assert len(scenario.description) > 40, scenario.key
 
 
-def test_scenario_windows_fall_inside_the_fixture_data_range():
-    """A catalogue entry outside the committed data would silently return nothing."""
+def test_scenario_windows_are_real_past_episodes():
+    """A window nobody could have prices for would silently return nothing.
+
+    The lower bound is where daily history from the live provider is still
+    dependable; the upper bound is the newest episode in the catalogue, so adding
+    one means moving it on purpose.
+    """
     for scenario in HISTORICAL_SCENARIOS:
-        assert scenario.start >= date(2007, 1, 1), scenario.key
-        assert scenario.end <= date(2024, 12, 31), scenario.key
+        assert scenario.start >= date(1990, 1, 1), scenario.key
+        assert scenario.end <= date(2025, 4, 8), scenario.key
+
+
+def test_the_catalogue_covers_both_supported_markets():
+    india = [scenario for scenario in HISTORICAL_SCENARIOS if "(India)" in scenario.name]
+
+    assert len(india) >= 3
+    assert len(HISTORICAL_SCENARIOS) - len(india) >= 10
 
 
 def test_a_scenario_serializes_its_exact_dates():
