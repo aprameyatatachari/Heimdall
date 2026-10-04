@@ -100,8 +100,39 @@ const summaries: Record<string, ReturnType<typeof summary>> = {
   }),
 };
 
+function returnHistory(
+  id: string,
+  days: number,
+  points: [string, number][],
+  extra: Record<string, unknown> = {},
+) {
+  return {
+    portfolio_id: id,
+    base_currency: id === US ? "USD" : "INR",
+    unit: "ratio",
+    annualized: false,
+    requested_days: days,
+    data_as_of: points.at(-1)?.[0] ?? null,
+    start: points[0]?.[0] ?? null,
+    end: points.at(-1)?.[0] ?? null,
+    observations: Math.max(points.length - 1, 0),
+    cumulative_return: points.at(-1)?.[1] ?? null,
+    symbols: ["TCS.NS"],
+    excluded_symbols: [],
+    points: points.map(([date, value]) => ({ date, cumulative_return: value })),
+    unavailable_reason: points.length === 0 ? "No holding has a stored price." : null,
+    assumption: "Portfolio returns are reconstructed by applying today's weights.",
+    disclaimer: "Educational tool.",
+    ...extra,
+  };
+}
+
+/** The `days` each return-history request asked for, in order. */
+let historyRequests: number[] = [];
+
 beforeEach(() => {
   window.localStorage.clear();
+  historyRequests = [];
   server.use(
     ...signedInHandlers,
     http.get(`${API}/portfolios`, () =>
@@ -110,6 +141,35 @@ beforeEach(() => {
     http.get(`${API}/portfolios/:id/summary`, ({ params }) =>
       HttpResponse.json(summaries[String(params["id"])]),
     ),
+    http.get(`${API}/portfolios/:id/return-history`, ({ params, request }) => {
+      const days = Number(new URL(request.url).searchParams.get("days"));
+      const id = String(params["id"]);
+      if (id === MAIN) historyRequests.push(days);
+      if (id === MAIN) {
+        return HttpResponse.json(
+          returnHistory(id, days, [
+            ["2026-09-28", 0],
+            ["2026-09-29", 0.012],
+            ["2026-10-01", 0.0345],
+          ]),
+        );
+      }
+      if (id === US) {
+        return HttpResponse.json(
+          returnHistory(
+            id,
+            days,
+            [
+              ["2026-09-28", 0],
+              ["2026-09-30", -0.02],
+              ["2026-10-02", -0.0512],
+            ],
+            { excluded_symbols: ["MSFT"] },
+          ),
+        );
+      }
+      return HttpResponse.json(returnHistory(id, days, []));
+    }),
     http.get(`${API}/portfolios/:id/signals/summary`, ({ params }) =>
       HttpResponse.json({
         portfolio_id: String(params["id"]),
@@ -269,5 +329,79 @@ describe("the main navigation", () => {
     expect(
       await screen.findByRole("button", { name: /create your first portfolio/i }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("returns over time", () => {
+  function frame() {
+    return screen
+      .getByRole("heading", { name: "Returns over time" })
+      .closest("figure") as HTMLElement;
+  }
+
+  it("draws a line per portfolio, as returns and not as amounts", async () => {
+    renderApp(<AppRoutes />, { route: "/app" });
+
+    await screen.findByRole("heading", { name: "Returns over time" });
+    // Percentages, so rupee and dollar portfolios share one axis honestly.
+    await waitFor(() =>
+      expect(screen.getByRole("group", { name: "Period" }).parentElement).toHaveTextContent(
+        "+3.45%",
+      ),
+    );
+    expect(screen.getByRole("group", { name: "Period" }).parentElement).toHaveTextContent(
+      "-5.12%",
+    );
+    expect(frame()).toHaveTextContent(/not annualized/i);
+  });
+
+  it("says the lines are a reconstruction, every time", async () => {
+    renderApp(<AppRoutes />, { route: "/app" });
+
+    await screen.findByRole("heading", { name: "Returns over time" });
+    expect(frame()).toHaveTextContent(/today.s weights are applied/i);
+    expect(frame()).toHaveTextContent(/not what was actually held/i);
+  });
+
+  it("names a portfolio it could not draw instead of drawing it flat", async () => {
+    renderApp(<AppRoutes />, { route: "/app" });
+
+    await screen.findByRole("heading", { name: "Returns over time" });
+    await waitFor(() => expect(frame()).toHaveTextContent(/Side is not drawn/));
+    expect(frame()).toHaveTextContent("No holding has a stored price.");
+  });
+
+  it("names a holding left out of a line", async () => {
+    renderApp(<AppRoutes />, { route: "/app" });
+
+    await screen.findByRole("heading", { name: "Returns over time" });
+    await waitFor(() => expect(frame()).toHaveTextContent(/Overseas: MSFT left out/));
+  });
+
+  it("asks for a year by default and for the period chosen", async () => {
+    const { user } = renderApp(<AppRoutes />, { route: "/app" });
+
+    await waitFor(() => expect(historyRequests).toEqual([365]));
+    const month = await screen.findByRole("button", { name: "Last one month" });
+    await user.click(month);
+
+    await waitFor(() => expect(historyRequests).toEqual([365, 30]));
+    expect(month).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("gives the same numbers as a table, without inventing values", async () => {
+    const { user } = renderApp(<AppRoutes />, { route: "/app" });
+
+    await screen.findByRole("heading", { name: "Returns over time" });
+    await waitFor(() => expect(frame()).toHaveTextContent(/Overseas: MSFT/));
+    await user.click(within(frame()).getByRole("button", { name: "View as table" }));
+
+    const table = within(frame()).getByRole("table");
+    const row = (date: string) => within(table).getByText(date).closest("tr") as HTMLElement;
+    // Main has no point on the 30th: its return is what it was on the 29th.
+    expect(row("Sep 30, 2026")).toHaveTextContent("+1.20%");
+    expect(row("Sep 30, 2026")).toHaveTextContent("-2.00%");
+    // Main's prices stop on the 1st, so on the 2nd it has no value, not a flat one.
+    expect(row("Oct 2, 2026")).toHaveTextContent("—");
   });
 });

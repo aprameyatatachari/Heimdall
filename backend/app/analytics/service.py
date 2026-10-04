@@ -50,6 +50,23 @@ FIXED_WEIGHT_NOTE = (
     "asset's historical returns. This does not reproduce what the portfolio "
     "actually held over the period."
 )
+
+
+@dataclass(slots=True)
+class ReturnHistory:
+    """A portfolio's cumulative return path, or the reason there is none."""
+
+    portfolio_id: uuid.UUID
+    base_currency: str
+    requested_days: int
+    data_as_of: date | None
+    symbols: list[str] = field(default_factory=list)
+    excluded_symbols: list[str] = field(default_factory=list)
+    dates: list[date] = field(default_factory=list)
+    cumulative_returns: list[float] = field(default_factory=list)
+    unavailable_reason: str | None = None
+
+
 ESTIMATE_NOTE = (
     "All figures are estimates derived from historical data and the stated model "
     "assumptions. They are not predictions."
@@ -234,6 +251,68 @@ class AnalyticsService:
         if portfolio is None:
             raise PortfolioNotFoundError()
         return await self._snapshots.build(portfolio)
+
+    async def return_history(
+        self,
+        *,
+        portfolio_id: uuid.UUID,
+        user_id: uuid.UUID,
+        days: int,
+    ) -> ReturnHistory:
+        """The portfolio's cumulative return over the period ending at its newest price.
+
+        Read from stored prices; nothing is fetched and nothing is stored. The
+        window ends at the newest price the portfolio has, not at today, so a
+        portfolio whose prices stop last week is charted up to last week rather
+        than shown as flat since.
+
+        A path that cannot be built is returned with no points and the reason,
+        never as a flat line at zero.
+        """
+        snapshot = await self.get_snapshot(portfolio_id=portfolio_id, user_id=user_id)
+        result = ReturnHistory(
+            portfolio_id=snapshot.portfolio_id,
+            base_currency=snapshot.base_currency,
+            requested_days=days,
+            data_as_of=snapshot.data_as_of,
+        )
+
+        if snapshot.data_as_of is None:
+            result.unavailable_reason = "No holding in this portfolio has a stored price."
+            result.excluded_symbols = [holding.symbol for holding in snapshot.holdings]
+            return result
+
+        end = snapshot.data_as_of
+        history = await self._snapshots.price_history(
+            snapshot,
+            start=end - timedelta(days=days),
+            end=end,
+        )
+        result.excluded_symbols = sorted(
+            holding.symbol for holding in snapshot.holdings if holding.symbol not in history
+        )
+        if not history:
+            result.unavailable_reason = (
+                "No holding has at least two stored prices in this period. Fetch its "
+                "price history to see returns over time."
+            )
+            return result
+
+        try:
+            aligned = calc.align_price_series(history)
+            weights_by_symbol = snapshot.weights()
+            weights = calc.normalize_weights(
+                [weights_by_symbol.get(symbol, 0.0) for symbol in aligned.symbols]
+            )
+            path = calc.cumulative_return_path(calc.portfolio_returns(weights, aligned.matrix))
+        except calc.CalculationError as exc:
+            result.unavailable_reason = str(exc)
+            return result
+
+        result.symbols = list(aligned.symbols)
+        result.dates = [aligned.base_date, *aligned.dates]
+        result.cumulative_returns = [float(value) for value in path]
+        return result
 
     async def get_run(self, *, run_id: uuid.UUID, user_id: uuid.UUID) -> AnalysisRun:
         """Return a stored run, scoped to the owner."""

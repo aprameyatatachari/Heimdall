@@ -201,6 +201,31 @@ default, and travels with the metric.
 the first common date. Their levels are unrelated, so plotting them raw invites a
 comparison of magnitudes that means nothing; indexing compares growth.
 
+### The return path outside a run
+
+`GET /portfolios/{id}/return-history?days=` returns the same reconstruction as a
+series, without running or storing an analysis:
+
+```text
+path[0] = 0                                  on the first common date
+path[i] = product(1 + returns[:i]) - 1
+```
+
+- **Today's weights**, applied to each holding's historical returns. It shows how
+  the current mix would have moved. It is not what the portfolio earned, and it
+  will not match the profit or loss against cost basis, which depends on when and
+  at what price each holding was bought.
+- **Not annualized.** A cumulative return over the stated dates, as a ratio.
+- **The period ends at the newest stored price**, not at today. A portfolio whose
+  prices stop last week is charted up to last week, not shown flat since.
+- **Common dates only**, as everywhere else: a date on which any included holding
+  has no price is not used.
+- **A holding with no history in the period is left out and named.** With no
+  series at all, `points` is empty and `unavailable_reason` says why. It is never
+  a flat line at zero.
+
+Over the same dates it equals the `total_return` of a stored run; a test pins that.
+
 ## Value at Risk
 
 Both estimates are always computed. `var_method` selects which one the interface

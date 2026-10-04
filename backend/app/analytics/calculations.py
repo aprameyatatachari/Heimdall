@@ -212,6 +212,19 @@ def value_history(returns: object, *, starting_value: float) -> FloatArray:
     return path
 
 
+def cumulative_return_path(returns: object) -> FloatArray:
+    """The cumulative return after each period, starting from zero.
+
+        path[0] = 0
+        path[i] = product(1 + returns[:i]) - 1
+
+    One more point than the return series, like `value_history`: the first point
+    is the date the first return is measured from, where nothing has been earned
+    or lost yet.
+    """
+    return value_history(returns, starting_value=1.0) - 1.0
+
+
 def value_history_ending_at(returns: object, *, ending_value: float) -> FloatArray:
     """Compound a return series into a value path that **ends** at `ending_value`.
 

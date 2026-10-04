@@ -2276,6 +2276,116 @@
         }
       }
     },
+    "/api/v1/portfolios/{portfolio_id}/return-history": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Cumulative return over a recent period",
+        "description": "The portfolio's cumulative return on each date of a recent period, read from stored prices. Nothing is fetched and nothing is stored.\n\nToday's weights are applied to each holding's historical returns, as in every other figure Heimdall reconstructs; this is not a record of what the portfolio actually earned. The period ends at the newest stored price, not at today. Only dates on which every included holding has a price are used. When no series can be built, `points` is empty and `unavailable_reason` says why.",
+        "operationId": "get_return_history_api_v1_portfolios__portfolio_id__return_history_get",
+        "parameters": [
+          {
+            "name": "portfolio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Portfolio identifier.",
+              "title": "Portfolio Id"
+            },
+            "description": "Portfolio identifier."
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 3650,
+              "minimum": 7,
+              "description": "Calendar days of history, ending at the portfolio's newest stored price.",
+              "default": 365,
+              "title": "Days"
+            },
+            "description": "Calendar days of history, ending at the portfolio's newest stored price."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnHistoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/portfolios/{portfolio_id}/analysis-runs": {
       "post": {
         "tags": [
@@ -8583,6 +8693,173 @@
         ],
         "title": "ReturnFrequency",
         "description": "How often a return observation is sampled."
+      },
+      "ReturnHistoryResponse": {
+        "properties": {
+          "portfolio_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Portfolio Id"
+          },
+          "base_currency": {
+            "type": "string",
+            "title": "Base Currency"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit",
+            "description": "Returns are ratios, not percentages.",
+            "default": "ratio"
+          },
+          "annualized": {
+            "type": "boolean",
+            "title": "Annualized",
+            "default": false
+          },
+          "requested_days": {
+            "type": "integer",
+            "title": "Requested Days",
+            "description": "Calendar days asked for, ending at `data_as_of`."
+          },
+          "data_as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data As Of",
+            "description": "The newest stored price date, where the series ends. Null with no prices."
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start",
+            "description": "First date of the series, where the return is zero."
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "observations": {
+            "type": "integer",
+            "title": "Observations",
+            "description": "Number of return periods in the series."
+          },
+          "cumulative_return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cumulative Return",
+            "description": "Return over the whole series. Null when the series could not be built."
+          },
+          "symbols": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Symbols",
+            "description": "Holdings the series is built from."
+          },
+          "excluded_symbols": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Excluded Symbols",
+            "description": "Holdings with no usable price history in the period, left out of the series."
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason",
+            "description": "Why there are no points. Null when the series was built."
+          },
+          "assumption": {
+            "type": "string",
+            "title": "Assumption"
+          },
+          "disclaimer": {
+            "type": "string",
+            "title": "Disclaimer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "portfolio_id",
+          "base_currency",
+          "requested_days",
+          "data_as_of",
+          "start",
+          "end",
+          "observations",
+          "cumulative_return",
+          "symbols",
+          "excluded_symbols",
+          "points",
+          "unavailable_reason",
+          "assumption",
+          "disclaimer"
+        ],
+        "title": "ReturnHistoryResponse",
+        "description": "A portfolio's cumulative return over a recent period.\n\nNot annualized, and not what the portfolio actually earned: today's weights\nare applied to each holding's historical returns. `assumption` says so, and\ntravels with the numbers."
+      },
+      "ReturnPoint": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "cumulative_return": {
+            "type": "number",
+            "title": "Cumulative Return",
+            "description": "Return since the first date of the series, as a ratio. 0.05 is +5%."
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "cumulative_return"
+        ],
+        "title": "ReturnPoint",
+        "description": "Cumulative return up to one date."
       },
       "RiskResultResponse": {
         "properties": {

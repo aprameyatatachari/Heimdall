@@ -216,6 +216,16 @@ this application, so rupees and dollars are totalled separately and the screen
 says so. An unpriced holding is left out of the totals and named, not counted as
 zero. The chart has its table alternative like every other.
 
+Between the two, **Returns over time**: one line per portfolio from
+`GET /portfolios/{id}/return-history`, over one month, three months, six months,
+one year or three years. Returns, not amounts, so portfolios in different
+currencies share an axis. Nothing is computed in the browser. The caption always
+says the lines are a reconstruction from today's weights and will not match the
+profit or loss against cost. Portfolios in different markets trade on different
+days: inside its own range a portfolio keeps its previous value on a date it has
+no point, and outside its range it has no value and nothing is drawn. A portfolio
+with no series is named with its reason instead of being drawn flat.
+
 The home page does not list a portfolio's sections. The navigation already does.
 
 **Main navigation.** Analytics, stress test, signals and reports each belong to a

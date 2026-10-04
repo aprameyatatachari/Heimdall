@@ -9,13 +9,15 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { usePortfolioOverviews } from "@/hooks/usePortfolioOverviews";
 
 import { HoldingsAcrossPortfolios, PortfolioCard } from "./parts/HomeOverview";
+import { ReturnsOverTime } from "./parts/ReturnsOverTime";
 
 /**
  * The authenticated home.
  *
  * It answers "what am I watching, and how is it doing" without opening
  * anything: each portfolio carries its own value, profit or loss and open
- * signals, and below them everything held is added up across portfolios.
+ * signals, a chart shows how each one's return has moved, and below that
+ * everything held is added up across portfolios.
  *
  * Nothing here is converted between currencies. Portfolios in rupees and
  * portfolios in dollars are totalled separately, because there is no exchange
@@ -77,6 +79,11 @@ export function AppHomePage() {
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className="flex flex-col gap-4">
+            <h2 className="font-display text-ink text-lg font-light">How it has moved</h2>
+            <ReturnsOverTime portfolios={items} />
           </section>
 
           <section className="flex flex-col gap-4">

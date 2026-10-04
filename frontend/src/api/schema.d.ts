@@ -364,6 +364,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/portfolios/{portfolio_id}/return-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cumulative return over a recent period
+         * @description The portfolio's cumulative return on each date of a recent period, read from stored prices. Nothing is fetched and nothing is stored.
+         *
+         *     Today's weights are applied to each holding's historical returns, as in every other figure Heimdall reconstructs; this is not a record of what the portfolio actually earned. The period ends at the newest stored price, not at today. Only dates on which every included holding has a price are used. When no series can be built, `points` is empty and `unavailable_reason` says why.
+         */
+        get: operations["get_return_history_api_v1_portfolios__portfolio_id__return_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/portfolios/{portfolio_id}/analysis-runs": {
         parameters: {
             query?: never;
@@ -2301,6 +2323,98 @@ export interface components {
          * @enum {string}
          */
         ReturnFrequency: "daily" | "weekly" | "monthly";
+        /**
+         * ReturnHistoryResponse
+         * @description A portfolio's cumulative return over a recent period.
+         *
+         *     Not annualized, and not what the portfolio actually earned: today's weights
+         *     are applied to each holding's historical returns. `assumption` says so, and
+         *     travels with the numbers.
+         */
+        ReturnHistoryResponse: {
+            /**
+             * Portfolio Id
+             * Format: uuid
+             */
+            portfolio_id: string;
+            /** Base Currency */
+            base_currency: string;
+            /**
+             * Unit
+             * @description Returns are ratios, not percentages.
+             * @default ratio
+             */
+            unit: string;
+            /**
+             * Annualized
+             * @default false
+             */
+            annualized: boolean;
+            /**
+             * Requested Days
+             * @description Calendar days asked for, ending at `data_as_of`.
+             */
+            requested_days: number;
+            /**
+             * Data As Of
+             * @description The newest stored price date, where the series ends. Null with no prices.
+             */
+            data_as_of: string | null;
+            /**
+             * Start
+             * @description First date of the series, where the return is zero.
+             */
+            start: string | null;
+            /** End */
+            end: string | null;
+            /**
+             * Observations
+             * @description Number of return periods in the series.
+             */
+            observations: number;
+            /**
+             * Cumulative Return
+             * @description Return over the whole series. Null when the series could not be built.
+             */
+            cumulative_return: number | null;
+            /**
+             * Symbols
+             * @description Holdings the series is built from.
+             */
+            symbols: string[];
+            /**
+             * Excluded Symbols
+             * @description Holdings with no usable price history in the period, left out of the series.
+             */
+            excluded_symbols: string[];
+            /** Points */
+            points: components["schemas"]["ReturnPoint"][];
+            /**
+             * Unavailable Reason
+             * @description Why there are no points. Null when the series was built.
+             */
+            unavailable_reason: string | null;
+            /** Assumption */
+            assumption: string;
+            /** Disclaimer */
+            disclaimer: string;
+        };
+        /**
+         * ReturnPoint
+         * @description Cumulative return up to one date.
+         */
+        ReturnPoint: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Cumulative Return
+             * @description Return since the first date of the series, as a ratio. 0.05 is +5%.
+             */
+            cumulative_return: number;
+        };
         /**
          * RiskResultResponse
          * @description One metric, with everything needed to read it correctly.
@@ -4527,6 +4641,86 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PortfolioSummaryResponse"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_return_history_api_v1_portfolios__portfolio_id__return_history_get: {
+        parameters: {
+            query?: {
+                /** @description Calendar days of history, ending at the portfolio's newest stored price. */
+                days?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Portfolio identifier. */
+                portfolio_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnHistoryResponse"];
                 };
             };
             /** @description Bad request */

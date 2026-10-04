@@ -170,6 +170,49 @@ class HoldingSummaryResponse(BaseModel):
         return str(value.quantize(Decimal("0.00000001")))
 
 
+class ReturnPoint(BaseModel):
+    """Cumulative return up to one date."""
+
+    date: date
+    cumulative_return: float = Field(
+        description="Return since the first date of the series, as a ratio. 0.05 is +5%."
+    )
+
+
+class ReturnHistoryResponse(BaseModel):
+    """A portfolio's cumulative return over a recent period.
+
+    Not annualized, and not what the portfolio actually earned: today's weights
+    are applied to each holding's historical returns. `assumption` says so, and
+    travels with the numbers.
+    """
+
+    portfolio_id: uuid.UUID
+    base_currency: str
+    unit: str = Field(default="ratio", description="Returns are ratios, not percentages.")
+    annualized: bool = False
+    requested_days: int = Field(description="Calendar days asked for, ending at `data_as_of`.")
+    data_as_of: date | None = Field(
+        description="The newest stored price date, where the series ends. Null with no prices."
+    )
+    start: date | None = Field(description="First date of the series, where the return is zero.")
+    end: date | None
+    observations: int = Field(description="Number of return periods in the series.")
+    cumulative_return: float | None = Field(
+        description="Return over the whole series. Null when the series could not be built."
+    )
+    symbols: list[str] = Field(description="Holdings the series is built from.")
+    excluded_symbols: list[str] = Field(
+        description="Holdings with no usable price history in the period, left out of the series."
+    )
+    points: list[ReturnPoint]
+    unavailable_reason: str | None = Field(
+        description="Why there are no points. Null when the series was built."
+    )
+    assumption: str
+    disclaimer: str
+
+
 class PortfolioSummaryResponse(BaseModel):
     """Current valuation of a portfolio. No historical statistics.
 

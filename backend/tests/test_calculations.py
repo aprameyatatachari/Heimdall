@@ -145,6 +145,21 @@ def test_value_history_requires_a_positive_start():
         calc.value_history([0.01], starting_value=0.0)
 
 
+def test_a_cumulative_return_path_starts_at_zero():
+    path = calc.cumulative_return_path([0.10, -0.10])
+
+    # +10% then -10% is -1%, not zero: returns compound, they do not add.
+    assert path == pytest.approx([0.0, 0.10, -0.01])
+
+
+def test_a_cumulative_return_path_ends_at_the_cumulative_return():
+    returns = [0.02, -0.01, 0.03, 0.005]
+
+    assert calc.cumulative_return_path(returns)[-1] == pytest.approx(
+        calc.cumulative_return(returns)
+    )
+
+
 # --- Volatility and Sharpe ----------------------------------------------------
 
 

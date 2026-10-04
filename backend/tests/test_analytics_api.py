@@ -727,3 +727,95 @@ async def test_analysis_requires_authentication(api):
     response = await api.post(f"{PORTFOLIOS}/{uuid.uuid4()}/analysis-runs", json={})
 
     assert response.status_code == 401
+
+
+# --- Return history ------------------------------------------------------------
+
+
+async def _return_history(api, headers, portfolio_id, **params):
+    return await api.get(
+        f"{PORTFOLIOS}/{portfolio_id}/return-history", params=params, headers=headers
+    )
+
+
+async def test_return_history_starts_at_zero_and_ends_at_the_newest_price(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("AAPL", "10", "100"), ("SPY", "5", "300")])
+
+    response = await _return_history(api, headers, portfolio_id)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["unavailable_reason"] is None
+    assert body["points"][0]["cumulative_return"] == 0
+    assert body["points"][0]["date"] == body["start"]
+    # The series ends where the prices do, not at today.
+    assert body["end"] == body["data_as_of"] == "2023-12-29"
+    assert body["cumulative_return"] == body["points"][-1]["cumulative_return"]
+    assert body["observations"] == len(body["points"]) - 1
+    assert body["symbols"] == ["AAPL", "SPY"]
+
+
+async def test_return_history_states_its_units_and_assumption(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("AAPL", "10", "100")])
+
+    body = (await _return_history(api, headers, portfolio_id)).json()
+
+    assert body["unit"] == "ratio"
+    assert body["annualized"] is False
+    assert "today's weights" in body["assumption"]
+    assert body["disclaimer"]
+
+
+async def test_return_history_covers_the_days_asked_for(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("AAPL", "10", "100")])
+
+    short = (await _return_history(api, headers, portfolio_id, days=30)).json()
+    long = (await _return_history(api, headers, portfolio_id, days=365)).json()
+
+    assert short["start"] >= "2023-11-29"
+    assert long["observations"] > short["observations"]
+
+
+async def test_return_history_matches_the_stored_run_over_the_same_window(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("AAPL", "10", "100"), ("SPY", "5", "300")])
+    history = (await _return_history(api, headers, portfolio_id, days=365)).json()
+
+    run = await _run(api, headers, portfolio_id, start=history["start"], end=history["end"])
+
+    # The chart on the home page and the analysis of the same dates must agree.
+    stored = _metrics(run.json())["total_return"]["value"]
+    assert history["cumulative_return"] == pytest.approx(float(stored), abs=1e-6)
+
+
+async def test_return_history_without_prices_has_no_points_and_a_reason(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("AAPL", "10", "100")], refresh=False)
+
+    body = (await _return_history(api, headers, portfolio_id)).json()
+
+    # Not a flat line at zero: there is nothing to draw, and it says why.
+    assert body["points"] == []
+    assert body["cumulative_return"] is None
+    assert body["unavailable_reason"]
+    assert body["excluded_symbols"] == ["AAPL"]
+
+
+async def test_return_history_rejects_a_window_out_of_range(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("AAPL", "10", "100")], refresh=False)
+
+    assert (await _return_history(api, headers, portfolio_id, days=1)).status_code == 422
+
+
+async def test_another_user_cannot_read_a_portfolios_return_history(api):
+    owner = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, owner, [("AAPL", "10", "100")], refresh=False)
+    stranger = await _signed_in_user(api)
+
+    response = await _return_history(api, stranger, portfolio_id)
+
+    assert response.status_code == 404

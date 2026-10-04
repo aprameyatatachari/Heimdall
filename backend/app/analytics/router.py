@@ -15,8 +15,11 @@ from app.analytics.schemas import (
     AnalysisRunSummary,
     HoldingSummaryResponse,
     PortfolioSummaryResponse,
+    ReturnHistoryResponse,
+    ReturnPoint,
     RiskResultResponse,
 )
+from app.analytics.service import FIXED_WEIGHT_NOTE
 from app.analytics.snapshot import PortfolioSnapshot
 from app.auth.dependencies import CurrentUser
 from app.common.disclaimer import DISCLAIMER
@@ -30,6 +33,12 @@ PortfolioIdPath = Path(description="Portfolio identifier.")
 RunIdPath = Path(description="Analysis run identifier.")
 PageLimit = Query(default=DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT)
 PageOffset = Query(default=0, ge=0)
+HistoryDays = Query(
+    default=365,
+    ge=7,
+    le=3650,
+    description="Calendar days of history, ending at the portfolio's newest stored price.",
+)
 
 
 def _summary_response(snapshot: PortfolioSnapshot) -> PortfolioSummaryResponse:
@@ -110,6 +119,55 @@ async def get_portfolio_summary(
     """Return the current valuation of a portfolio."""
     snapshot = await service.get_snapshot(portfolio_id=portfolio_id, user_id=current_user.id)
     return _summary_response(snapshot)
+
+
+@portfolio_router.get(
+    "/{portfolio_id}/return-history",
+    response_model=ReturnHistoryResponse,
+    summary="Cumulative return over a recent period",
+    description=(
+        "The portfolio's cumulative return on each date of a recent period, read "
+        "from stored prices. Nothing is fetched and nothing is stored.\n\n"
+        "Today's weights are applied to each holding's historical returns, as in "
+        "every other figure Heimdall reconstructs; this is not a record of what the "
+        "portfolio actually earned. The period ends at the newest stored price, not "
+        "at today. Only dates on which every included holding has a price are used. "
+        "When no series can be built, `points` is empty and `unavailable_reason` "
+        "says why."
+    ),
+)
+async def get_return_history(
+    current_user: CurrentUser,
+    service: AnalyticsServiceDep,
+    portfolio_id: uuid.UUID = PortfolioIdPath,
+    days: int = HistoryDays,
+) -> ReturnHistoryResponse:
+    """Return the portfolio's cumulative return path."""
+    history = await service.return_history(
+        portfolio_id=portfolio_id,
+        user_id=current_user.id,
+        days=days,
+    )
+    returns = history.cumulative_returns
+    return ReturnHistoryResponse(
+        portfolio_id=history.portfolio_id,
+        base_currency=history.base_currency,
+        requested_days=history.requested_days,
+        data_as_of=history.data_as_of,
+        start=history.dates[0] if history.dates else None,
+        end=history.dates[-1] if history.dates else None,
+        observations=max(len(returns) - 1, 0),
+        cumulative_return=returns[-1] if returns else None,
+        symbols=history.symbols,
+        excluded_symbols=history.excluded_symbols,
+        points=[
+            ReturnPoint(date=day, cumulative_return=value)
+            for day, value in zip(history.dates, returns, strict=True)
+        ],
+        unavailable_reason=history.unavailable_reason,
+        assumption=FIXED_WEIGHT_NOTE,
+        disclaimer=DISCLAIMER,
+    )
 
 
 @portfolio_router.post(

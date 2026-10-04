@@ -140,6 +140,7 @@ See [financial-methodology.md](./financial-methodology.md).
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/v1/portfolios/{id}/summary` | Current valuation. No historical statistics |
+| GET | `/api/v1/portfolios/{id}/return-history` | Cumulative return on each date of a recent period, from stored prices |
 | POST | `/api/v1/portfolios/{id}/analysis-runs` | Run and store a risk analysis. `201` |
 | GET | `/api/v1/portfolios/{id}/analysis-runs` | Analysis history |
 | GET | `/api/v1/analysis-runs/{run_id}` | One run with every metric |
