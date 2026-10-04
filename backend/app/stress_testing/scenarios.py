@@ -425,6 +425,17 @@ HISTORICAL_SCENARIOS: Final[tuple[HistoricalScenario, ...]] = (
         start=date(2025, 1, 24),
         end=date(2025, 1, 27),
     ),
+    HistoricalScenario(
+        key="india_us_tariffs_2025",
+        name="2025 US tariffs on Indian goods (India)",
+        description=(
+            "The decline in Indian equities between the Nifty 50's 27 June 2025 high "
+            "and its 8 August 2025 low, the period in which the United States announced "
+            "a 25% tariff on Indian goods and then a further 25%."
+        ),
+        start=date(2025, 6, 27),
+        end=date(2025, 8, 8),
+    ),
 )
 
 SCENARIOS_BY_KEY: Final[dict[str, HistoricalScenario]] = {
