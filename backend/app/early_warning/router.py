@@ -8,7 +8,7 @@ without knowing the branding.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Path, Query, Response, status
 
@@ -17,6 +17,7 @@ from app.common.dependencies import ClockDep, SettingsDep
 from app.common.schemas import DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT, Page
 from app.early_warning.dependencies import (
     EarlyWarningServiceDep,
+    LiveMonitorDep,
     SchedulerGuard,
     SignalRepositoryDep,
 )
@@ -612,8 +613,10 @@ def _signal_response(signal: WarningSignal, *, include_events: bool) -> WarningS
         "Requires the configured scheduler secret in `X-Cron-Secret` or as a bearer "
         "token; the comparison is constant-time. The endpoint refuses to run when no "
         "secret is configured.\n\n"
-        "**Idempotent** for one UTC evaluation period: a repeat call for the same "
+        "**Idempotent** for one evaluation period: a repeat call for the same "
         "portfolio and period returns the existing run instead of evaluating again. "
+        "The period is one UTC day, or one `interval_minutes` when that is given. "
+        "`refresh_prices` reads the newest prices for each portfolio first. "
         "Work is **bounded** by `batch_size` and resumable through `cursor`, so it "
         "fits inside a serverless function's duration. A portfolio that fails is "
         "recorded and the batch continues.\n\n"
@@ -625,13 +628,16 @@ def _signal_response(signal: WarningSignal, *, include_events: bool) -> WarningS
 async def run_scheduled_monitoring(
     payload: ScheduledMonitoringRequest,
     service: EarlyWarningServiceDep,
+    live: LiveMonitorDep,
     settings: SettingsDep,
     clock: ClockDep,
 ) -> ScheduledMonitoringResponse:
     """Run monitoring for a bounded batch of portfolios."""
     now = clock.now()
-    # One evaluation period per UTC day: a retry on the same day is deduplicated.
-    period = now.strftime("%Y-%m-%d")
+    period = _evaluation_period(now, payload.interval_minutes)
+    # A run that repeats within the day leaves "nothing changed" out of each
+    # signal's audit trail; a daily one records it.
+    frequent = payload.interval_minutes is not None
     batch_size = payload.batch_size or settings.monitoring_batch_size
 
     portfolio_ids = await service.eligible_portfolio_ids(limit=batch_size, after=payload.cursor)
@@ -642,12 +648,20 @@ async def run_scheduled_monitoring(
 
     for portfolio_id in portfolio_ids:
         try:
-            outcome = await service.run_monitoring(
-                portfolio_id=portfolio_id,
-                user_id=None,
-                trigger_type=MonitoringTriggerType.SCHEDULED,
-                idempotency_key=f"scheduled:{period}",
-            )
+            if payload.refresh_prices:
+                outcome = await live.check(
+                    portfolio_id,
+                    idempotency_key=f"scheduled:{period}",
+                    record_reobservations=not frequent,
+                )
+            else:
+                outcome = await service.run_monitoring(
+                    portfolio_id=portfolio_id,
+                    user_id=None,
+                    trigger_type=MonitoringTriggerType.SCHEDULED,
+                    idempotency_key=f"scheduled:{period}",
+                    record_reobservations=not frequent,
+                )
         except MonitoringAlreadyRunningError:
             skipped += 1
             results.append(
@@ -691,3 +705,18 @@ async def run_scheduled_monitoring(
         next_cursor=portfolio_ids[-1] if len(portfolio_ids) == batch_size else None,
         results=results,
     )
+
+
+def _evaluation_period(now: datetime, interval_minutes: int | None) -> str:
+    """The period a scheduled call is idempotent for.
+
+    One UTC day by default. With an interval, the start of the interval `now`
+    falls in, so two calls inside the same interval share a period and a call in
+    the next one does not.
+    """
+    if interval_minutes is None:
+        return now.strftime("%Y-%m-%d")
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elapsed = int((now - midnight).total_seconds() // 60)
+    start = midnight + timedelta(minutes=elapsed - elapsed % interval_minutes)
+    return start.strftime("%Y-%m-%dT%H:%M")

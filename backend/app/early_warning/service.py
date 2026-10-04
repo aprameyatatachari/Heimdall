@@ -347,12 +347,19 @@ class EarlyWarningService:
         user_id: uuid.UUID | None,
         trigger_type: MonitoringTriggerType,
         idempotency_key: str | None = None,
+        record_reobservations: bool = True,
     ) -> MonitoringOutcome:
         """Evaluate every enabled rule for a portfolio and reconcile its signals.
 
         A failing rule is recorded and the run continues, so one broken rule never
         discards the results of the others. `user_id` is None for scheduled runs,
         which are not performed on behalf of a signed-in user.
+
+        `record_reobservations=False` is for runs that repeat every few minutes.
+        The signal itself is still brought up to date, and a new signal, a change
+        of severity and a resolution are still written to its audit trail. What is
+        left out is the entry saying nothing changed: at one per signal per check
+        it would bury the entries that record something happening.
         """
         if user_id is not None:
             await self._require_portfolio(portfolio_id, user_id)
@@ -408,6 +415,7 @@ class EarlyWarningService:
                 context=context,
                 run=run,
                 seen_fingerprints=seen_fingerprints,
+                record_reobservations=record_reobservations,
             )
             results.append(result)
 
@@ -470,6 +478,10 @@ class EarlyWarningService:
         if run is None:
             raise MonitoringRunNotFoundError()
         return run
+
+    async def has_enabled_rules(self, portfolio_id: uuid.UUID) -> bool:
+        """Whether monitoring this portfolio would evaluate anything."""
+        return bool(await self._rules.list_for_portfolio(portfolio_id, enabled_only=True))
 
     async def eligible_portfolio_ids(
         self, *, limit: int, after: uuid.UUID | None
@@ -693,6 +705,7 @@ class EarlyWarningService:
         context: RuleContext,
         run: MonitoringRun,
         seen_fingerprints: set[str],
+        record_reobservations: bool = True,
     ) -> RuleResult:
         """Evaluate one rule and apply its outcomes to the signal lifecycle."""
         result = RuleResult(rule_id=rule.id, rule_type=rule.rule_type, status="evaluated")
@@ -733,6 +746,7 @@ class EarlyWarningService:
                 run=run,
                 outcome=outcome,
                 fingerprint=fingerprint,
+                record_reobservations=record_reobservations,
             )
             if created:
                 result.signals_created += 1
@@ -751,6 +765,7 @@ class EarlyWarningService:
         run: MonitoringRun,
         outcome: RuleOutcome,
         fingerprint: str,
+        record_reobservations: bool = True,
     ) -> bool:
         """Create or update the signal for one condition. Returns True when created."""
         now = self._clock.now()
@@ -831,15 +846,16 @@ class EarlyWarningService:
             event_type = SignalEventType.REOBSERVED
             note = "The condition was observed again with the same severity."
 
-        self._record_event(
-            existing,
-            event_type=event_type,
-            from_severity=str(previous_severity),
-            to_severity=str(severity),
-            observed_value=outcome.observed_value,
-            monitoring_run_id=run.id,
-            note=note,
-        )
+        if record_reobservations or event_type is not SignalEventType.REOBSERVED:
+            self._record_event(
+                existing,
+                event_type=event_type,
+                from_severity=str(previous_severity),
+                to_severity=str(severity),
+                observed_value=outcome.observed_value,
+                monitoring_run_id=run.id,
+                note=note,
+            )
         await self._notify(
             existing,
             new_severity=severity,

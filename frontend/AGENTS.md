@@ -422,6 +422,27 @@ disables while in flight so a run cannot be submitted twice. Results show rules
 evaluated, rules failed, and signals created/updated/resolved. A `partial` run
 lists which rules failed **without hiding the signals the others produced**.
 
+**Live.** The rules are evaluated whenever prices are refreshed
+(`POST /portfolios/{id}/market-data/refresh?quick=true&monitor=true`): when a
+portfolio opens, every five minutes while its tab is visible, and from **Refresh
+now**. The summary, the signal list and the monitoring history refetch every
+minute, because a check can also be made by the server's scheduler or by another
+tab. The screen shows when the rules were last checked, to the second, and says
+that quotes can trail the exchange.
+
+Outside this tab, an open portfolio carries two things: the number of open
+signals on the Signals tab, and a notice when a signal becomes active that was
+not there when the page opened. The first answer is the baseline and announces
+nothing. The notice is `role="status"`, polite, takes no focus, and **does not
+time out** — it stays until dismissed or followed.
+
+**Motion** is GSAP, through `src/lib/motion.ts`, and stays inside DESIGN.md
+section 7.1: a 200ms fade when a signal card, the notice or the tab count first
+appears, and nothing else. No translation, no loop, no pulse, and a number that
+changes does so instantly. Every tween is created under
+`prefers-reduced-motion: no-preference`, so under a reduced-motion preference
+none exists. Use `useGSAP` with a scope, never a bare `useEffect`.
+
 Copy discipline: branded term beside the plain one, always.
 
 > **Gjallarhorn Signal — High position concentration**

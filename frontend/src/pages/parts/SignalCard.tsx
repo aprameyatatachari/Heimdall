@@ -73,7 +73,7 @@ export function SignalCard({
   const open = signal.status === "active" || signal.status === "acknowledged";
 
   return (
-    <li className="hm-panel flex flex-col gap-4 p-5">
+    <li className="hm-panel flex flex-col gap-4 p-5" data-enter-key={signal.id}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-3">

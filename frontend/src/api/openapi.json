@@ -1908,7 +1908,7 @@
           "market data"
         ],
         "summary": "Refresh market data for a portfolio",
-        "description": "Fetches any missing daily bars for every holding in the portfolio, and re-reads the newest one, which a live provider keeps revising until the close. Repeating the call is safe: ingestion is idempotent, keyed by asset, date, and source. An asset that cannot be refreshed is reported under `failures` without preventing the others from updating. `quick=true` limits the work to the last few days and skips instrument metadata, which is what a page load wants.",
+        "description": "Fetches any missing daily bars for every holding in the portfolio, and re-reads the newest one, which a live provider keeps revising until the close. Repeating the call is safe: ingestion is idempotent, keyed by asset, date, and source. An asset that cannot be refreshed is reported under `failures` without preventing the others from updating. `quick=true` limits the work to the last few days and skips instrument metadata, which is what a page load wants. `monitor=true` then evaluates the portfolio's Early Warning rules against what was just read.",
         "operationId": "refresh_portfolio_market_data_api_v1_portfolios__portfolio_id__market_data_refresh_post",
         "parameters": [
           {
@@ -1972,6 +1972,18 @@
               "title": "Quick"
             },
             "description": "Only bring the newest prices up to date: a short recent window, and no re-reading of instrument metadata. What a page load or a refresh button wants, as opposed to building history."
+          },
+          {
+            "name": "monitor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Evaluate the portfolio's Early Warning rules against the refreshed prices, in the same request. A warning computed from prices older than the ones on screen would describe a portfolio the reader is no longer looking at.",
+              "default": false,
+              "title": "Monitor"
+            },
+            "description": "Evaluate the portfolio's Early Warning rules against the refreshed prices, in the same request. A warning computed from prices older than the ones on screen would describe a portfolio the reader is no longer looking at."
           }
         ],
         "responses": {
@@ -4887,7 +4899,7 @@
           "early warning"
         ],
         "summary": "Run scheduled monitoring (protected)",
-        "description": "Evaluates portfolios that have at least one enabled rule. Intended for a scheduler, not for users.\n\nRequires the configured scheduler secret in `X-Cron-Secret` or as a bearer token; the comparison is constant-time. The endpoint refuses to run when no secret is configured.\n\n**Idempotent** for one UTC evaluation period: a repeat call for the same portfolio and period returns the existing run instead of evaluating again. Work is **bounded** by `batch_size` and resumable through `cursor`, so it fits inside a serverless function's duration. A portfolio that fails is recorded and the batch continues.\n\nThe response carries operational counts only \u2014 never portfolio names, holdings, or signal content.",
+        "description": "Evaluates portfolios that have at least one enabled rule. Intended for a scheduler, not for users.\n\nRequires the configured scheduler secret in `X-Cron-Secret` or as a bearer token; the comparison is constant-time. The endpoint refuses to run when no secret is configured.\n\n**Idempotent** for one evaluation period: a repeat call for the same portfolio and period returns the existing run instead of evaluating again. The period is one UTC day, or one `interval_minutes` when that is given. `refresh_prices` reads the newest prices for each portfolio first. Work is **bounded** by `batch_size` and resumable through `cursor`, so it fits inside a serverless function's duration. A portfolio that fails is recorded and the batch continues.\n\nThe response carries operational counts only \u2014 never portfolio names, holdings, or signal content.",
         "operationId": "run_scheduled_monitoring_api_v1_internal_monitoring_run_post",
         "requestBody": {
           "content": {
@@ -6901,6 +6913,17 @@
             },
             "type": "array",
             "title": "Failures"
+          },
+          "monitoring": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RefreshMonitoring"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Early Warning run made against the refreshed prices. Null when `monitor` was not asked for, the portfolio has no enabled rule, or a run was already in progress."
           }
         },
         "type": "object",
@@ -8286,6 +8309,59 @@
         "title": "RefreshFailure",
         "description": "An asset that could not be refreshed."
       },
+      "RefreshMonitoring": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "The run's status: succeeded, partial, or skipped."
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At",
+            "description": "When the rules were evaluated against the refreshed prices, in UTC."
+          },
+          "rules_evaluated": {
+            "type": "integer",
+            "title": "Rules Evaluated"
+          },
+          "rules_failed": {
+            "type": "integer",
+            "title": "Rules Failed"
+          },
+          "signals_created": {
+            "type": "integer",
+            "title": "Signals Created"
+          },
+          "signals_updated": {
+            "type": "integer",
+            "title": "Signals Updated"
+          },
+          "signals_resolved": {
+            "type": "integer",
+            "title": "Signals Resolved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "status",
+          "checked_at",
+          "rules_evaluated",
+          "rules_failed",
+          "signals_created",
+          "signals_updated",
+          "signals_resolved"
+        ],
+        "title": "RefreshMonitoring",
+        "description": "The monitoring run that followed a refresh, in counts."
+      },
       "RegisterRequest": {
         "properties": {
           "email": {
@@ -8686,6 +8762,26 @@
             ],
             "title": "Cursor",
             "description": "Resume point: process portfolios with an id greater than this."
+          },
+          "refresh_prices": {
+            "type": "boolean",
+            "title": "Refresh Prices",
+            "description": "Read the newest prices for each portfolio before evaluating it. Without this a scheduled run evaluates whatever was last stored.",
+            "default": false
+          },
+          "interval_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1440.0,
+                "minimum": 5.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Minutes",
+            "description": "How often the scheduler calls. The evaluation period becomes one interval of this length rather than one UTC day, so a scheduler that calls every fifteen minutes evaluates every fifteen minutes and a retry inside one interval is still deduplicated."
           }
         },
         "additionalProperties": false,

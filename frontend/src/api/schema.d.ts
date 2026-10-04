@@ -315,7 +315,7 @@ export interface paths {
         put?: never;
         /**
          * Refresh market data for a portfolio
-         * @description Fetches any missing daily bars for every holding in the portfolio, and re-reads the newest one, which a live provider keeps revising until the close. Repeating the call is safe: ingestion is idempotent, keyed by asset, date, and source. An asset that cannot be refreshed is reported under `failures` without preventing the others from updating. `quick=true` limits the work to the last few days and skips instrument metadata, which is what a page load wants.
+         * @description Fetches any missing daily bars for every holding in the portfolio, and re-reads the newest one, which a live provider keeps revising until the close. Repeating the call is safe: ingestion is idempotent, keyed by asset, date, and source. An asset that cannot be refreshed is reported under `failures` without preventing the others from updating. `quick=true` limits the work to the last few days and skips instrument metadata, which is what a page load wants. `monitor=true` then evaluates the portfolio's Early Warning rules against what was just read.
          */
         post: operations["refresh_portfolio_market_data_api_v1_portfolios__portfolio_id__market_data_refresh_post"];
         delete?: never;
@@ -751,7 +751,7 @@ export interface paths {
          *
          *     Requires the configured scheduler secret in `X-Cron-Secret` or as a bearer token; the comparison is constant-time. The endpoint refuses to run when no secret is configured.
          *
-         *     **Idempotent** for one UTC evaluation period: a repeat call for the same portfolio and period returns the existing run instead of evaluating again. Work is **bounded** by `batch_size` and resumable through `cursor`, so it fits inside a serverless function's duration. A portfolio that fails is recorded and the batch continues.
+         *     **Idempotent** for one evaluation period: a repeat call for the same portfolio and period returns the existing run instead of evaluating again. The period is one UTC day, or one `interval_minutes` when that is given. `refresh_prices` reads the newest prices for each portfolio first. Work is **bounded** by `batch_size` and resumable through `cursor`, so it fits inside a serverless function's duration. A portfolio that fails is recorded and the batch continues.
          *
          *     The response carries operational counts only — never portfolio names, holdings, or signal content.
          */
@@ -1558,6 +1558,8 @@ export interface components {
             results: components["schemas"]["AssetRefreshResult"][];
             /** Failures */
             failures: components["schemas"]["RefreshFailure"][];
+            /** @description The Early Warning run made against the refreshed prices. Null when `monitor` was not asked for, the portfolio has no enabled rule, or a run was already in progress. */
+            monitoring?: components["schemas"]["RefreshMonitoring"] | null;
         };
         /**
          * MetricUnit
@@ -2161,6 +2163,38 @@ export interface components {
             message: string;
         };
         /**
+         * RefreshMonitoring
+         * @description The monitoring run that followed a refresh, in counts.
+         */
+        RefreshMonitoring: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /**
+             * Status
+             * @description The run's status: succeeded, partial, or skipped.
+             */
+            status: string;
+            /**
+             * Checked At
+             * Format: date-time
+             * @description When the rules were evaluated against the refreshed prices, in UTC.
+             */
+            checked_at: string;
+            /** Rules Evaluated */
+            rules_evaluated: number;
+            /** Rules Failed */
+            rules_failed: number;
+            /** Signals Created */
+            signals_created: number;
+            /** Signals Updated */
+            signals_updated: number;
+            /** Signals Resolved */
+            signals_resolved: number;
+        };
+        /**
          * RegisterRequest
          * @description Registration payload.
          */
@@ -2365,6 +2399,17 @@ export interface components {
              * @description Resume point: process portfolios with an id greater than this.
              */
             cursor?: string | null;
+            /**
+             * Refresh Prices
+             * @description Read the newest prices for each portfolio before evaluating it. Without this a scheduled run evaluates whatever was last stored.
+             * @default false
+             */
+            refresh_prices: boolean;
+            /**
+             * Interval Minutes
+             * @description How often the scheduler calls. The evaluation period becomes one interval of this length rather than one UTC day, so a scheduler that calls every fifteen minutes evaluates every fifteen minutes and a retry inside one interval is still deduplicated.
+             */
+            interval_minutes?: number | null;
         };
         /**
          * ScheduledMonitoringResponse
@@ -4304,6 +4349,8 @@ export interface operations {
                 end?: string | null;
                 /** @description Only bring the newest prices up to date: a short recent window, and no re-reading of instrument metadata. What a page load or a refresh button wants, as opposed to building history. */
                 quick?: boolean;
+                /** @description Evaluate the portfolio's Early Warning rules against the refreshed prices, in the same request. A warning computed from prices older than the ones on screen would describe a portfolio the reader is no longer looking at. */
+                monitor?: boolean;
             };
             header?: never;
             path: {

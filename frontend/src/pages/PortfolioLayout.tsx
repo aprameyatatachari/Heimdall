@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, NavLink, Outlet, useParams } from "react-router-dom";
 
 import { usePortfolio, usePortfolioSummary } from "@/api/portfolios";
+import { useSignalSummary } from "@/api/signals";
 import { Button } from "@/components/Button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DataAsOf } from "@/components/DataAsOf";
@@ -10,11 +11,14 @@ import { Panel } from "@/components/Panel";
 import { Failed, Loading } from "@/components/states";
 import { useDeletePortfolio } from "@/api/portfolios";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { SIGNAL_POLL_MS, useNewSignals } from "@/hooks/useNewSignals";
 import { cx } from "@/lib/cx";
+import { useFadeIn } from "@/lib/motion";
 import { useNavigate } from "react-router-dom";
 
 import { PortfolioFormDialog } from "./parts/PortfolioFormDialog";
 import { PriceRefresh } from "./parts/PriceRefresh";
+import { SignalNotice } from "./parts/SignalNotice";
 
 const TABS = [
   { to: ".", label: "Overview", end: true },
@@ -43,11 +47,33 @@ function SummaryTile({
   );
 }
 
+/**
+ * How many signals are open, on the tab that leads to them.
+ *
+ * The number changes instantly when it changes; only the badge's first
+ * appearance fades. A count that animated on every update would invite reading
+ * a transient value. DESIGN.md section 7.1.
+ */
+function OpenSignalCount({ count }: { count: number }) {
+  const ref = useFadeIn<HTMLSpanElement>();
+  return (
+    <span
+      ref={ref}
+      className="border-line-strong text-ink hm-numeric ms-2 inline-flex min-w-5 items-center justify-center rounded-full border px-1.5 text-xs"
+    >
+      {count}
+      <span className="sr-only"> open</span>
+    </span>
+  );
+}
+
 export function PortfolioLayout() {
   const { portfolioId = "" } = useParams();
   const navigate = useNavigate();
   const portfolio = usePortfolio(portfolioId);
   const summary = usePortfolioSummary(portfolioId);
+  const signalSummary = useSignalSummary(portfolioId, { refetchInterval: SIGNAL_POLL_MS });
+  const newSignals = useNewSignals(portfolioId);
   const remove = useDeletePortfolio();
 
   const [editing, setEditing] = useState(false);
@@ -62,6 +88,7 @@ export function PortfolioLayout() {
 
   const currency = portfolio.data.base_currency;
   const s = summary.data;
+  const openSignals = signalSummary.data?.total_open ?? 0;
 
   return (
     <div className="flex flex-col gap-8">
@@ -184,11 +211,20 @@ export function PortfolioLayout() {
             }
           >
             {tab.label}
+            {tab.to === "signals" && openSignals > 0 && <OpenSignalCount count={openSignals} />}
           </NavLink>
         ))}
       </nav>
 
       <Outlet context={{ portfolioId, currency }} />
+
+      {newSignals.fresh.length > 0 && (
+        <SignalNotice
+          signals={newSignals.fresh}
+          to={`/app/portfolios/${portfolioId}/signals`}
+          onDismiss={newSignals.clear}
+        />
+      )}
 
       <PortfolioFormDialog
         open={editing}

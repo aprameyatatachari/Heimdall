@@ -181,8 +181,25 @@ Cron issues `GET` and evaluating every portfolio is not a `GET`. The adapter:
 2. Verifies `Authorization: Bearer $CRON_SECRET` in constant time. Vercel sends
    that header automatically when `CRON_SECRET` is set. **An unset secret
    refuses rather than running unprotected.**
-3. Calls `POST /api/v1/internal/monitoring/run` with the secret, so the real
-   request goes through the real guard.
+3. Calls `POST /api/v1/internal/monitoring/run` with the secret and
+   `refresh_prices: true`, so the real request goes through the real guard and
+   the rules are evaluated against prices read that morning.
+
+This is a **daily** check, which is what Vercel's free plan allows. The
+in-process scheduler that checks every few minutes (`LIVE_MONITORING_ENABLED`)
+does not run here: a serverless function has no process to keep a timer in. To
+check more often on a deployment, point any scheduler that can send a header at
+the endpoint directly and tell it how often it calls:
+
+```text
+POST /api/v1/internal/monitoring/run
+X-Cron-Secret: <secret>
+{"refresh_prices": true, "interval_minutes": 15}
+```
+
+`interval_minutes` makes the evaluation period one interval instead of one day,
+so each call evaluates and a retry inside the same interval is still
+deduplicated. See `docs/early-warning.md`.
 
 The work itself is idempotent and retry-safe: one evaluation period per UTC day,
 so a retry after a timeout resumes rather than double-evaluating, and

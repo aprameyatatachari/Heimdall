@@ -9,6 +9,9 @@ from fastapi import APIRouter, Path, Query
 
 from app.auth.dependencies import CurrentUser
 from app.common.dependencies import ClockDep
+from app.early_warning.dependencies import EarlyWarningServiceDep
+from app.early_warning.rule_types import MonitoringTriggerType
+from app.early_warning.service import MonitoringAlreadyRunningError
 from app.market_data.dependencies import MarketDataServiceDep
 from app.market_data.schemas import (
     AssetRefreshResult,
@@ -21,8 +24,9 @@ from app.market_data.schemas import (
     PriceBarResponse,
     PriceSeriesResponse,
     RefreshFailure,
+    RefreshMonitoring,
 )
-from app.market_data.service import IngestResult
+from app.market_data.service import QUICK_REFRESH_DAYS, IngestResult
 from app.market_data.validation import ObservationProblem
 from app.portfolios.dependencies import PortfolioServiceDep
 
@@ -55,12 +59,17 @@ QuickFlagQuery = Query(
         "wants, as opposed to building history."
     ),
 )
+MonitorFlagQuery = Query(
+    default=False,
+    description=(
+        "Evaluate the portfolio's Early Warning rules against the refreshed "
+        "prices, in the same request. A warning computed from prices older than "
+        "the ones on screen would describe a portfolio the reader is no longer "
+        "looking at."
+    ),
+)
 CoverageStartQuery = Query(description="Inclusive start of the window.")
 CoverageEndQuery = Query(description="Inclusive end of the window.")
-
-# How far back a quick refresh reaches. Long enough to span a holiday weekend, so
-# a refresh on the Tuesday after one still finds the last bar it has.
-QUICK_REFRESH_DAYS = 7
 
 # A holding whose stored prices start this many trading days into the window, or
 # stop this many before its end, is reported as only partly covered. A handful
@@ -197,18 +206,21 @@ async def get_asset_prices(
         "asset, date, and source. An asset that cannot be refreshed is reported "
         "under `failures` without preventing the others from updating. "
         "`quick=true` limits the work to the last few days and skips instrument "
-        "metadata, which is what a page load wants."
+        "metadata, which is what a page load wants. `monitor=true` then evaluates "
+        "the portfolio's Early Warning rules against what was just read."
     ),
 )
 async def refresh_portfolio_market_data(
     current_user: CurrentUser,
     portfolio_service: PortfolioServiceDep,
     service: MarketDataServiceDep,
+    early_warning: EarlyWarningServiceDep,
     clock: ClockDep,
     portfolio_id: uuid.UUID = PortfolioIdPath,
     start: date | None = StartDateQuery,
     end: date | None = EndDateQuery,
     quick: bool = QuickFlagQuery,
+    monitor: bool = MonitorFlagQuery,
 ) -> MarketDataRefreshResponse:
     """Refresh every holding's price history."""
     portfolio = await portfolio_service.get_with_positions(
@@ -232,6 +244,32 @@ async def refresh_portfolio_market_data(
     summary = await service.refresh_assets(assets, start=start, end=end, refresh_latest=True)
     window = service.resolve_window(start, end)
 
+    monitoring: RefreshMonitoring | None = None
+    if monitor and await early_warning.has_enabled_rules(portfolio.id):
+        try:
+            outcome = await early_warning.run_monitoring(
+                portfolio_id=portfolio.id,
+                user_id=current_user.id,
+                trigger_type=MonitoringTriggerType.MARKET_DATA_REFRESH,
+                record_reobservations=False,
+            )
+        except MonitoringAlreadyRunningError:
+            # Another check is evaluating this portfolio right now. Its result
+            # will be the current one; the prices read here are stored either way.
+            pass
+        else:
+            run = outcome.run
+            monitoring = RefreshMonitoring(
+                run_id=run.id,
+                status=run.status,
+                checked_at=run.completed_at or clock.now(),
+                rules_evaluated=run.rules_evaluated,
+                rules_failed=run.rules_failed,
+                signals_created=run.signals_created,
+                signals_updated=run.signals_updated,
+                signals_resolved=run.signals_resolved,
+            )
+
     return MarketDataRefreshResponse(
         portfolio_id=portfolio.id,
         data_as_of=summary.data_as_of,
@@ -245,6 +283,7 @@ async def refresh_portfolio_market_data(
         failures=[
             RefreshFailure(symbol=symbol, message=message) for symbol, message in summary.failures
         ],
+        monitoring=monitoring,
     )
 
 

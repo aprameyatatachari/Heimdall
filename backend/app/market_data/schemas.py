@@ -103,6 +103,21 @@ class RefreshFailure(BaseModel):
     message: str
 
 
+class RefreshMonitoring(BaseModel):
+    """The monitoring run that followed a refresh, in counts."""
+
+    run_id: uuid.UUID
+    status: str = Field(description="The run's status: succeeded, partial, or skipped.")
+    checked_at: datetime = Field(
+        description="When the rules were evaluated against the refreshed prices, in UTC."
+    )
+    rules_evaluated: int
+    rules_failed: int
+    signals_created: int
+    signals_updated: int
+    signals_resolved: int
+
+
 class MarketDataRefreshResponse(BaseModel):
     """Result of refreshing every holding in a portfolio."""
 
@@ -126,6 +141,14 @@ class MarketDataRefreshResponse(BaseModel):
     results: list[AssetRefreshResult]
     # Present when some assets failed. Successful assets are still reported above.
     failures: list[RefreshFailure]
+    monitoring: RefreshMonitoring | None = Field(
+        default=None,
+        description=(
+            "The Early Warning run made against the refreshed prices. Null when "
+            "`monitor` was not asked for, the portfolio has no enabled rule, or a "
+            "run was already in progress."
+        ),
+    )
 
 
 class HoldingCoverage(BaseModel):

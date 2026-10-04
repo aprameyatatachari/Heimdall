@@ -273,6 +273,24 @@ class ScheduledMonitoringRequest(BaseModel):
         default=None,
         description="Resume point: process portfolios with an id greater than this.",
     )
+    refresh_prices: bool = Field(
+        default=False,
+        description=(
+            "Read the newest prices for each portfolio before evaluating it. "
+            "Without this a scheduled run evaluates whatever was last stored."
+        ),
+    )
+    interval_minutes: int | None = Field(
+        default=None,
+        ge=5,
+        le=1440,
+        description=(
+            "How often the scheduler calls. The evaluation period becomes one "
+            "interval of this length rather than one UTC day, so a scheduler that "
+            "calls every fifteen minutes evaluates every fifteen minutes and a "
+            "retry inside one interval is still deduplicated."
+        ),
+    )
 
 
 class ScheduledPortfolioResult(BaseModel):

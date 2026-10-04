@@ -111,9 +111,16 @@ if (-not (Test-Path (Join-Path $frontend "node_modules"))) {
 # Separate windows, titled so stop.ps1 and a human can both find them.
 Write-Step "Starting services"
 
-# Live prices unless backend/.env says otherwise. `-Fixtures` forces the
-# committed offline series.
-$providerPrefix = if ($Fixtures) { "set MARKET_DATA_PROVIDER=fixture && " } else { "" }
+# Live prices, and live monitoring on top of them: while the API is up it
+# refreshes prices and evaluates the Early Warning rules every few minutes
+# during market hours. `-Fixtures` forces the committed offline series, where
+# there is nothing to watch, so monitoring on a timer is left off.
+# Quoted, because cmd keeps the space before `&&` as part of an unquoted value.
+$providerPrefix = if ($Fixtures) {
+    "set `"MARKET_DATA_PROVIDER=fixture`" && "
+} else {
+    "set `"MARKET_DATA_PROVIDER=yahoo`" && set `"LIVE_MONITORING_ENABLED=true`" && "
+}
 
 Start-Process -FilePath "cmd.exe" -ArgumentList @(
     "/k", "title Heimdall API && cd /d `"$root\backend`" && $providerPrefix" + "uv run uvicorn app.main:app --host 127.0.0.1 --port $ApiPort --reload"
@@ -122,7 +129,8 @@ Write-Ok "API starting on http://127.0.0.1:$ApiPort"
 if ($Fixtures) {
     Write-Ok "Market data: committed fixtures"
 } else {
-    Write-Ok "Market data: Yahoo Finance, unless backend/.env overrides it"
+    Write-Ok "Market data: Yahoo Finance"
+    Write-Ok "Live monitoring: on, during market hours"
 }
 
 Start-Process -FilePath "cmd.exe" -ArgumentList @(

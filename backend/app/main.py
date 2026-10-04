@@ -6,8 +6,9 @@ ASGI servers and the Vercel Python runtime.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.analytics.router import portfolio_router as analytics_portfolio_router
 from app.analytics.router import runs_router as analysis_runs_router
 from app.auth.router import router as auth_router
+from app.common.clock import get_clock
 from app.common.disclaimer import DISCLAIMER
 from app.common.errors import ERROR_RESPONSES, register_exception_handlers
 from app.common.logging import REQUEST_ID_HEADER, configure_logging, get_logger
@@ -29,12 +31,13 @@ from app.config import (
     Settings,
     get_settings,
 )
-from app.database import dispose_engine
+from app.database import dispose_engine, get_session_factory
 from app.early_warning.router import catalogue_router as ews_catalogue_router
 from app.early_warning.router import internal_router as ews_internal_router
 from app.early_warning.router import portfolio_router as ews_portfolio_router
 from app.early_warning.router import runs_router as ews_runs_router
 from app.early_warning.router import signals_router as ews_signals_router
+from app.early_warning.scheduler import MonitoringScheduler
 from app.health.router import router as health_router
 from app.market_data.router import assets_router, portfolio_market_data_router
 from app.portfolios.router import router as portfolios_router
@@ -53,17 +56,37 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     Database migrations are intentionally NOT run here. They are applied by a
     controlled release step so that a cold start never mutates the schema.
+
+    Live monitoring, when enabled, is a task that lives exactly as long as the
+    process. A serverless function has no such lifetime, so it is not started
+    there; a cron calling the protected endpoint does the same job.
     """
     settings: Settings = app.state.settings
+    live_monitoring = settings.live_monitoring_enabled and not settings.serverless
     logger.info(
         "application_startup",
         environment=str(settings.environment),
         version=settings.version,
         serverless=settings.serverless,
+        live_monitoring=live_monitoring,
     )
+
+    monitoring_task: asyncio.Task[None] | None = None
+    if live_monitoring:
+        scheduler = MonitoringScheduler(
+            settings=settings,
+            clock=get_clock(),
+            session_factory=get_session_factory(),
+        )
+        monitoring_task = asyncio.create_task(scheduler.run(), name="heimdall-live-monitoring")
+
     try:
         yield
     finally:
+        if monitoring_task is not None:
+            monitoring_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await monitoring_task
         await dispose_engine()
         logger.info("application_shutdown")
 

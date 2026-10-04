@@ -11,6 +11,7 @@ from app.analytics.dependencies import SnapshotBuilderDep
 from app.common.dependencies import ClockDep, SessionDep, SettingsDep
 from app.common.errors import AppError
 from app.common.logging import get_logger
+from app.early_warning.live import LiveMonitor
 from app.early_warning.notifications import NullNotifier
 from app.early_warning.repository import (
     AlertRuleRepository,
@@ -18,7 +19,8 @@ from app.early_warning.repository import (
     WarningSignalRepository,
 )
 from app.early_warning.service import EarlyWarningService
-from app.portfolios.repository import PortfolioRepository
+from app.market_data.dependencies import MarketDataServiceDep
+from app.portfolios.repository import PortfolioRepository, PositionRepository
 from app.stress_testing.dependencies import StressTestingServiceDep
 
 logger = get_logger(__name__)
@@ -49,6 +51,22 @@ def get_early_warning_service(
 
 
 EarlyWarningServiceDep = Annotated[EarlyWarningService, Depends(get_early_warning_service)]
+
+
+def get_live_monitor(
+    session: SessionDep,
+    market_data: MarketDataServiceDep,
+    early_warning: EarlyWarningServiceDep,
+) -> LiveMonitor:
+    """Build the refresh-then-monitor operation for this request."""
+    return LiveMonitor(
+        positions=PositionRepository(session),
+        market_data=market_data,
+        early_warning=early_warning,
+    )
+
+
+LiveMonitorDep = Annotated[LiveMonitor, Depends(get_live_monitor)]
 
 
 def get_signal_repository(session: SessionDep) -> WarningSignalRepository:

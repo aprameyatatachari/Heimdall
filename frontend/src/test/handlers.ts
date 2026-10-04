@@ -37,10 +37,11 @@ export function errorBody(body: Partial<ApiErrorBody> & { code: string; message:
 /**
  * Requests a portfolio screen makes on its own, without being asked.
  *
- * Opening a portfolio reads the newest prices, and the analysis and stress
- * screens check price coverage for the window on screen. Neither is what most
- * tests are about, so both answer quietly here — a refresh that changed nothing,
- * and a window that is fully covered. They sit in the server's base handlers,
+ * Opening a portfolio reads the newest prices and asks which signals are open,
+ * and the analysis and stress screens check price coverage for the window on
+ * screen. None of that is what most tests are about, so each answers quietly
+ * here — a refresh that changed nothing, no open signals, and a window that is
+ * fully covered. They sit in the server's base handlers,
  * which are the lowest priority, so a test that cares registers its own.
  */
 const backgroundHandlers = [
@@ -56,7 +57,19 @@ const backgroundHandlers = [
       bars_written: 0,
       results: [],
       failures: [],
+      monitoring: null,
     }),
+  ),
+  http.get(`${API}/portfolios/:portfolioId/signals/summary`, ({ params }) =>
+    HttpResponse.json({
+      portfolio_id: String(params["portfolioId"]),
+      total_open: 0,
+      by_severity: { informational: 0, elevated: 0, high: 0, critical: 0 },
+      disclaimer: "Educational tool.",
+    }),
+  ),
+  http.get(`${API}/portfolios/:portfolioId/signals`, () =>
+    HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
   ),
   http.get(`${API}/portfolios/:portfolioId/market-data/coverage`, ({ params, request }) => {
     const url = new URL(request.url);

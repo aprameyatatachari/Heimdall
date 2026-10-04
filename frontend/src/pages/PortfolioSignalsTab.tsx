@@ -22,8 +22,10 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Panel } from "@/components/Panel";
 import { SeverityCount } from "@/components/Severity";
 import { Empty, Failed, Loading } from "@/components/states";
+import { SIGNAL_POLL_MS } from "@/hooks/useNewSignals";
 import { cx } from "@/lib/cx";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTimeSeconds } from "@/lib/format";
+import { useStaggeredEntrance } from "@/lib/motion";
 import { ruleLabel } from "@/lib/signalUnits";
 
 import { AlertRuleEditor } from "./parts/AlertRuleEditor";
@@ -32,6 +34,15 @@ import { SignalDetail } from "./parts/SignalDetail";
 import { usePortfolioContext } from "./parts/portfolioContext";
 
 const SEVERITY_ORDER: SignalSeverity[] = ["critical", "high", "elevated", "informational"];
+
+const LIVE = { refetchInterval: SIGNAL_POLL_MS };
+
+/** What started a check, in words a reader would use. */
+const TRIGGER_WORDS: Record<string, string> = {
+  manual: "Run by you",
+  scheduled: "On a schedule",
+  market_data_refresh: "After a price refresh",
+};
 
 const STATUS_FILTERS: { value: SignalStatus; label: string }[] = [
   { value: "active", label: "Active" },
@@ -62,11 +73,17 @@ export function PortfolioSignalsTab() {
   const [confirmingDismiss, setConfirmingDismiss] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
 
-  const summary = useSignalSummary(portfolioId);
-  const signals = useSignals(portfolioId, filters);
+  const summary = useSignalSummary(portfolioId, LIVE);
+  const signals = useSignals(portfolioId, filters, 50, LIVE);
   const ruleTypes = useAlertRuleTypes();
   const rules = useAlertRules(portfolioId);
-  const monitoringRuns = useMonitoringRuns(portfolioId);
+  const monitoringRuns = useMonitoringRuns(portfolioId, 10, LIVE);
+
+  // A signal fades in the first time it is listed, and never again: this list
+  // is refetched every minute, and one that re-entered each time would be a loop.
+  const signalList = useStaggeredEntrance<HTMLUListElement>(
+    signals.data?.items.map((item) => item.id) ?? [],
+  );
 
   const acknowledge = useAcknowledgeSignal(portfolioId);
   const dismiss = useDismissSignal(portfolioId);
@@ -166,13 +183,26 @@ export function PortfolioSignalsTab() {
           />
         )}
 
-        {latestRun && !runMonitoring.data && (
-          <p className="text-ink-dim text-xs">
-            Last monitored {formatDateTime(latestRun.started_at)} — {latestRun.rules_evaluated}{" "}
-            rules evaluated
-            {latestRun.rules_failed > 0 ? `, ${latestRun.rules_failed} failed` : ""}.
+        <div className="border-line-soft text-ink-dim flex flex-col gap-1 border-t pt-4 text-xs">
+          <p role="status" aria-live="polite">
+            {latestRun ? (
+              <>
+                Last checked{" "}
+                {formatDateTimeSeconds(latestRun.completed_at ?? latestRun.started_at)}
+                {" — "}
+                {latestRun.rules_evaluated} rules evaluated
+                {latestRun.rules_failed > 0 ? `, ${latestRun.rules_failed} failed` : ""}.
+              </>
+            ) : (
+              "Not checked yet."
+            )}
           </p>
-        )}
+          <p className="max-w-prose leading-relaxed">
+            The rules are evaluated each time this portfolio&rsquo;s prices are refreshed: when
+            it is opened, every five minutes while it stays open, and on demand. Quotes from the
+            data source can trail the exchange by about fifteen minutes.
+          </p>
+        </div>
       </Panel>
 
       {/* --- Filters ------------------------------------------------------ */}
@@ -221,7 +251,7 @@ export function PortfolioSignalsTab() {
           />
         </Panel>
       ) : (
-        <ul className="flex flex-col gap-4">
+        <ul ref={signalList} className="flex flex-col gap-4">
           {signals.data.items.map((signal) => (
             <SignalCard
               key={signal.id}
@@ -336,9 +366,11 @@ export function PortfolioSignalsTab() {
                 {monitoringRuns.data.items.map((item) => (
                   <tr key={item.id} className="border-line-soft border-b last:border-b-0">
                     <td className="text-ink-muted px-4 py-3">
-                      {formatDateTime(item.started_at)}
+                      {formatDateTimeSeconds(item.started_at)}
                     </td>
-                    <td className="text-ink-muted px-4 py-3 capitalize">{item.trigger_type}</td>
+                    <td className="text-ink-muted px-4 py-3">
+                      {TRIGGER_WORDS[item.trigger_type] ?? item.trigger_type}
+                    </td>
                     <td
                       className={cx(
                         "px-4 py-3 capitalize",

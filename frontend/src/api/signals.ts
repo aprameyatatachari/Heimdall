@@ -54,16 +54,34 @@ export const signalKeys = {
 /* Signals                                                                     */
 /* -------------------------------------------------------------------------- */
 
-export function useSignalSummary(portfolioId: string) {
+/**
+ * Polling, for the screens that stay open.
+ *
+ * A check can be made by something other than this page — the scheduler on the
+ * server, or the same portfolio open in another tab — so an open screen asks
+ * again on an interval instead of assuming it is the only thing that can change
+ * a signal. Paused while the tab is hidden, which is React Query's default.
+ */
+export interface LiveOptions {
+  refetchInterval?: number;
+}
+
+export function useSignalSummary(portfolioId: string, live: LiveOptions = {}) {
   return useQuery({
     queryKey: signalKeys.summary(portfolioId),
     queryFn: () => api.get<SignalSummaryResponse>(`/portfolios/${portfolioId}/signals/summary`),
     enabled: Boolean(portfolioId),
     staleTime: 30_000,
+    refetchInterval: live.refetchInterval,
   });
 }
 
-export function useSignals(portfolioId: string, filters: SignalFilters = {}, limit = 50) {
+export function useSignals(
+  portfolioId: string,
+  filters: SignalFilters = {},
+  limit = 50,
+  live: LiveOptions = {},
+) {
   return useQuery({
     queryKey: signalKeys.list(portfolioId, filters),
     queryFn: () =>
@@ -78,6 +96,7 @@ export function useSignals(portfolioId: string, filters: SignalFilters = {}, lim
       }),
     enabled: Boolean(portfolioId),
     staleTime: 30_000,
+    refetchInterval: live.refetchInterval,
   });
 }
 
@@ -91,7 +110,7 @@ export function useSignal(signalId: string | null) {
 }
 
 /** Everything a change to one signal could be visible in. */
-function invalidateSignals(
+export function invalidateSignals(
   queryClient: ReturnType<typeof useQueryClient>,
   portfolioId: string,
 ) {
@@ -203,7 +222,7 @@ export function useProvisionDefaultRules(portfolioId: string) {
 /* Monitoring runs                                                             */
 /* -------------------------------------------------------------------------- */
 
-export function useMonitoringRuns(portfolioId: string, limit = 10) {
+export function useMonitoringRuns(portfolioId: string, limit = 10, live: LiveOptions = {}) {
   return useQuery({
     queryKey: signalKeys.monitoringRuns(portfolioId),
     queryFn: () =>
@@ -212,6 +231,7 @@ export function useMonitoringRuns(portfolioId: string, limit = 10) {
       }),
     enabled: Boolean(portfolioId),
     staleTime: 30_000,
+    refetchInterval: live.refetchInterval,
   });
 }
 

@@ -77,6 +77,8 @@ Configuration is entirely environment-based. Locally, values may be placed in
 | --- | --- | --- |
 | `CRON_SECRET` | unset | Protects `POST /api/v1/internal/monitoring/run`. **With no value set, that endpoint returns 503 rather than running unprotected.** Generate with `openssl rand -hex 32`. |
 | `MONITORING_BATCH_SIZE` | `25` | Portfolios evaluated per scheduled invocation. Bounded so a run fits inside a serverless function's duration. |
+| `LIVE_MONITORING_ENABLED` | `false` | Refresh prices and evaluate the rules on a timer inside the API process, for each portfolio whose market is open. **Ignored when `SERVERLESS=true`**, where no process outlives a request. `start.bat` turns it on. |
+| `LIVE_MONITORING_INTERVAL_SECONDS` | `300` | Seconds between live checks. Between 60 and 86400. |
 
 ## Rate limiting
 

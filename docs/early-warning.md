@@ -249,6 +249,13 @@ Rules that hold without exception:
 Every transition is written to `signal_events`, an append-only audit table that is
 never updated or deleted.
 
+One entry is conditional. A run made by hand, or once a day, records that a
+condition **was observed again** unchanged. A run that repeats every few minutes
+does not: at one entry per signal per check it would bury the entries that
+record something happening. The signal itself is still brought up to date on
+every run, and a new signal, a change of severity and a resolution are always
+recorded, whatever triggered the run.
+
 ## Deduplication
 
 Each condition has a **fingerprint**: a SHA-256 digest of
@@ -336,6 +343,52 @@ restore defaults, and trigger a manual evaluation.
 | Stale market data | At least one stored price per holding |
 | Missing data | Nothing; it reports the absence itself |
 
+## Live monitoring
+
+A monitoring run evaluates **stored** prices. On its own it says nothing about how
+old they are, so "live" means two things done in order: read the market, then
+evaluate. Three things do that.
+
+| What | When | Trigger recorded |
+| --- | --- | --- |
+| An open portfolio page | When it opens, every five minutes while the tab is visible, and on **Refresh now** | `market_data_refresh` |
+| The in-process scheduler | Every `LIVE_MONITORING_INTERVAL_SECONDS` while the portfolio's market is open | `scheduled` |
+| A cron calling the protected endpoint with `refresh_prices` | Whenever it is scheduled | `scheduled` |
+
+**After a refresh.** `POST /portfolios/{id}/market-data/refresh?monitor=true`
+evaluates the rules in the same request as the refresh, and returns the run's
+counts under `monitoring`. A warning computed from older prices than the ones on
+screen would describe a portfolio the reader is no longer looking at. A portfolio
+with no enabled rule is not evaluated and no run is recorded for it.
+
+**The in-process scheduler** (`app/early_warning/scheduler.py`) is opt-in through
+`LIVE_MONITORING_ENABLED` and never starts under `SERVERLESS`. Each tick it
+checks every portfolio that has an enabled rule and whose market is open:
+
+- The market comes from the portfolio's base currency: NYSE hours for USD, NSE
+  hours for INR, Monday to Friday, with thirty minutes of grace after the close
+  for delayed quotes. Exchange holidays are not modelled; on one, a check reads
+  nothing new and changes nothing. An unknown currency is treated as open.
+- Each portfolio is checked in its own transaction. One that fails is rolled
+  back and logged, and the rest are still checked.
+- A tick that fails outright is logged and the loop tries again next interval.
+  The scheduler cannot take the API down.
+- A price that could not be read does not stop the run. The stale-data rule
+  exists to report exactly that.
+
+**What "live" honestly means here.** Concentration, drawdown, stale-data and
+missing-data rules move with the latest price, so they change during a session.
+Volatility, VaR, correlation and stress-loss rules are built on daily returns
+and move meaningfully once a day, at the close. Quotes from the free data source
+trail the exchange by about fifteen minutes. And a signal still reaches nobody
+who is not looking: see the first limitation below.
+
+**In the application** an open portfolio shows the number of open signals on its
+Signals tab, asks again every minute, and shows a notice when a signal appears
+that was not there when the page opened. The notice stays until it is dismissed
+or followed. The Signals tab shows when the rules were last checked, to the
+second.
+
 ## Scheduling
 
 ```text
@@ -356,8 +409,11 @@ Properties, each one deliberate:
 
 - **Authenticated.** Requires `CRON_SECRET`, compared in constant time. With no
   secret configured the endpoint returns `503` rather than running unprotected.
-- **Idempotent** for one UTC day. A retry for the same portfolio and period returns
-  the stored run instead of evaluating again.
+- **Idempotent** for one evaluation period. A retry for the same portfolio and
+  period returns the stored run instead of evaluating again. The period is one UTC
+  day, or one interval when the body carries `interval_minutes` (5 to 1440).
+- **Optionally fresh.** With `refresh_prices: true` each portfolio's newest prices
+  are read before it is evaluated. Without it, the run evaluates what is stored.
 - **Bounded.** `batch_size` (default `MONITORING_BATCH_SIZE`, 25) caps the work per
   invocation so it fits inside a serverless function's duration.
 - **Resumable.** The response carries `next_cursor`; pass it back as `cursor` to
@@ -448,9 +504,15 @@ historical baseline*. Never buy, sell, hold, or rebalance.
 ## Known limitations
 
 - **No external notification delivery.** The interface exists; no channel is
-  implemented. Cooldown accounting is correct and tested, but nothing is sent.
+  implemented. Cooldown accounting is correct and tested, but nothing is sent. A
+  new signal is shown in the application while a portfolio is open, and nowhere
+  else: nobody is emailed or paged.
 - **No missed-signal guarantee.** Signals are produced only when a monitoring run
-  executes. Between runs, a condition can appear and disappear unobserved.
+  executes. Between runs, a condition can appear and disappear unobserved. Live
+  monitoring shortens that gap to minutes during market hours; it does not close it.
+- **Delayed, daily data.** Prices are daily bars whose newest bar is revised during
+  the session, from a source that trails the exchange by about fifteen minutes.
+  There is no tick or intraday history.
 - **Rules are deterministic thresholds**, not statistical models. There is no
   anomaly detection and no learning.
 - **One base currency per portfolio.** Multi-currency portfolios are not evaluated.

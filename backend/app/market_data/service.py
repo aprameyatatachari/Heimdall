@@ -52,6 +52,10 @@ MAX_INGEST_WINDOW_DAYS = 365 * 25
 # this many days it may be today's, or the last session before a long weekend.
 LIVE_BAR_DAYS = 4
 
+# How far back a quick refresh reaches. Long enough to span a holiday weekend, so
+# a refresh on the Tuesday after one still finds the last bar it has.
+QUICK_REFRESH_DAYS = 7
+
 # Default history fetched when a caller does not specify a start date.
 DEFAULT_HISTORY_DAYS = 365 * 3
 
@@ -380,6 +384,19 @@ class MarketDataService:
                 summary.failures.append((asset.symbol, str(exc)))
 
         return summary
+
+    async def refresh_latest_prices(self, assets: list[Asset]) -> RefreshSummary:
+        """Bring the newest prices up to date, and nothing else.
+
+        A short recent window, and no re-reading of metadata for an asset that is
+        already described: the metadata call is the slow one, and a company's
+        sector does not change between one check and the next.
+        """
+        start = self._clock.now().date() - timedelta(days=QUICK_REFRESH_DAYS)
+        resolved = [
+            await self.resolve_asset(asset.symbol, enrich=asset.name is None) for asset in assets
+        ]
+        return await self.refresh_assets(resolved, start=start, refresh_latest=True)
 
     async def coverage(
         self,

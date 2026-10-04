@@ -104,6 +104,12 @@ class Settings(BaseSettings):
     # Portfolios evaluated per scheduled invocation. Bounded so a run fits inside a
     # serverless function's configured duration.
     monitoring_batch_size: int = Field(default=25, ge=1, le=200)
+    # Refresh prices and run monitoring on a timer inside this process, while a
+    # portfolio's market is open. Off by default: it needs a process that stays
+    # up, so it is ignored under SERVERLESS, where a cron calls the protected
+    # endpoint instead.
+    live_monitoring_enabled: bool = False
+    live_monitoring_interval_seconds: int = Field(default=300, ge=60, le=86400)
 
     # --- Authentication -------------------------------------------------------
     # Signs access tokens. The placeholder below is refused outside local and test.

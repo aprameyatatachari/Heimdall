@@ -16,6 +16,7 @@ import {
 
 import { api, request } from "./client";
 import type { components } from "./schema";
+import { invalidateSignals, signalKeys } from "./signals";
 import type { PortfolioResponse, PortfolioSummaryResponse, PositionResponse } from "./types";
 
 type Schemas = components["schemas"];
@@ -225,16 +226,37 @@ export function useRefreshMarketData(portfolioId: string) {
     // pressing the button while the automatic one is in flight must not start a
     // second request for the same prices.
     mutationKey: portfolioKeys.refresh(portfolioId),
-    mutationFn: (range: { start?: string; end?: string; quick?: boolean }) =>
+    mutationFn: (range: {
+      start?: string;
+      end?: string;
+      quick?: boolean;
+      /** Evaluate the Early Warning rules against the prices just read. */
+      monitor?: boolean;
+    }) =>
       api.post<MarketDataRefreshResponse>(
         `/portfolios/${portfolioId}/market-data/refresh`,
         undefined,
-        { params: { start: range.start, end: range.end, quick: range.quick || undefined } },
+        {
+          params: {
+            start: range.start,
+            end: range.end,
+            quick: range.quick || undefined,
+            monitor: range.monitor || undefined,
+          },
+        },
       ),
-    onSuccess: () => {
+    onSuccess: (data) => {
       // New prices change every derived figure, not just the holdings table.
       invalidateHoldings(queryClient, portfolioId);
       void queryClient.invalidateQueries({ queryKey: ["price-coverage", portfolioId] });
+      if (data.monitoring) {
+        // The rules were evaluated against these prices, so every signal on
+        // screen may have moved with them.
+        invalidateSignals(queryClient, portfolioId);
+        void queryClient.invalidateQueries({
+          queryKey: signalKeys.monitoringRuns(portfolioId),
+        });
+      }
     },
   });
 }

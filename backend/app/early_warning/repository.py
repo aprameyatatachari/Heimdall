@@ -33,6 +33,20 @@ class AlertRuleRepository:
         result = await self._session.execute(statement.order_by(AlertRule.rule_type.asc()))
         return list(result.scalars())
 
+    async def monitored_portfolios(self) -> list[tuple[uuid.UUID, str]]:
+        """Every portfolio with an enabled rule, with its base currency.
+
+        The currency is what tells a scheduler which market's hours apply.
+        """
+        result = await self._session.execute(
+            select(Portfolio.id, Portfolio.base_currency)
+            .join(AlertRule, AlertRule.portfolio_id == Portfolio.id)
+            .where(AlertRule.enabled.is_(True))
+            .group_by(Portfolio.id, Portfolio.base_currency)
+            .order_by(Portfolio.id.asc())
+        )
+        return [(row[0], row[1]) for row in result.all()]
+
     async def get_owned(self, rule_id: uuid.UUID, user_id: uuid.UUID) -> AlertRule | None:
         """One rule, only if the caller owns its portfolio."""
         result = await self._session.execute(

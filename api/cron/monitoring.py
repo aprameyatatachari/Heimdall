@@ -82,7 +82,9 @@ class handler(BaseHTTPRequestHandler):  # noqa: N801 - Vercel requires this name
 
         request = urllib.request.Request(
             f"{_deployment_origin()}{MONITORING_PATH}",
-            data=json.dumps({}).encode("utf-8"),
+            # Prices first: a run that evaluated whatever was last stored would
+            # re-examine the same close every day nobody opened the app.
+            data=json.dumps({"refresh_prices": True}).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
                 "X-Cron-Secret": secret,
