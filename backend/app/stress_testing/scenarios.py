@@ -366,7 +366,7 @@ HISTORICAL_SCENARIOS: Final[tuple[HistoricalScenario, ...]] = (
         name="Early 2026 correction",
         description=(
             "The decline in US equities between the S&P 500's 27 January 2026 high and its 30 "
-            "March 2026 low. Dated from index closes; no cause is attributed here."
+            "March 2026 low. The later weeks overlap the 2026 Iran war."
         ),
         start=date(2026, 1, 27),
         end=date(2026, 3, 30),
@@ -376,7 +376,7 @@ HISTORICAL_SCENARIOS: Final[tuple[HistoricalScenario, ...]] = (
         name="Early 2026 correction (India)",
         description=(
             "The decline in Indian equities between the Nifty 50's 2 January 2026 high and its "
-            "30 March 2026 low. Dated from index closes; no cause is attributed here."
+            "30 March 2026 low. The later weeks overlap the 2026 Iran war."
         ),
         start=date(2026, 1, 2),
         end=date(2026, 3, 30),
@@ -435,6 +435,94 @@ HISTORICAL_SCENARIOS: Final[tuple[HistoricalScenario, ...]] = (
         ),
         start=date(2025, 6, 27),
         end=date(2025, 8, 8),
+    ),
+    HistoricalScenario(
+        key="september_11_attacks_2001",
+        name="September 2001 attacks",
+        description=(
+            "The fall in equities from the last close before the 11 September 2001 attacks in "
+            "the United States to the 21 September 2001 low. US markets were closed for four "
+            "sessions in between."
+        ),
+        start=date(2001, 9, 10),
+        end=date(2001, 9, 21),
+    ),
+    HistoricalScenario(
+        key="us_iran_tensions_january_2020",
+        name="January 2020 US-Iran escalation",
+        description=(
+            "The week spanning the US strike that killed Iranian general Qasem Soleimani on 3 "
+            "January 2020 and Iran's missile attack on bases in Iraq on 8 January. Equity "
+            "moves were small; oil moved more."
+        ),
+        start=date(2020, 1, 2),
+        end=date(2020, 1, 8),
+    ),
+    HistoricalScenario(
+        key="russia_ukraine_invasion_2022",
+        name="Russian invasion of Ukraine",
+        description=(
+            "The decline in equities between the February 2022 high before Russia's invasion "
+            "of Ukraine on 24 February and the 8 March 2022 low, as oil, gas and grain prices "
+            "rose sharply."
+        ),
+        start=date(2022, 2, 9),
+        end=date(2022, 3, 8),
+    ),
+    HistoricalScenario(
+        key="israel_hamas_war_2023",
+        name="October 2023 Israel-Hamas war",
+        description=(
+            "The decline in equities from the last close before the 7 October 2023 attack on "
+            "Israel to the 27 October 2023 low, as the war in Gaza began. US bond yields were "
+            "also rising over the same weeks."
+        ),
+        start=date(2023, 10, 6),
+        end=date(2023, 10, 27),
+    ),
+    HistoricalScenario(
+        key="iran_israel_strikes_april_2024",
+        name="April 2024 Iran-Israel strikes",
+        description=(
+            "The week spanning Iran's missile and drone attack on Israel on 13 April 2024 and "
+            "Israel's strike on Iran on 19 April, the first direct exchange between the two "
+            "countries."
+        ),
+        start=date(2024, 4, 12),
+        end=date(2024, 4, 19),
+    ),
+    HistoricalScenario(
+        key="india_pakistan_conflict_2025",
+        name="May 2025 India-Pakistan conflict (India)",
+        description=(
+            "The fall in Indian equities over the four days of military exchanges between "
+            "India and Pakistan that began on 7 May 2025, ending the session before the 10 May "
+            "ceasefire."
+        ),
+        start=date(2025, 5, 6),
+        end=date(2025, 5, 9),
+    ),
+    HistoricalScenario(
+        key="israel_iran_war_june_2025",
+        name="June 2025 Israel-Iran war",
+        description=(
+            "The period from the last close before Israel's strikes on Iran on 13 June 2025 to "
+            "the session after the US strikes on Iranian nuclear sites on 22 June. Equity "
+            "moves were small."
+        ),
+        start=date(2025, 6, 12),
+        end=date(2025, 6, 23),
+    ),
+    HistoricalScenario(
+        key="iran_war_2026",
+        name="2026 Iran war",
+        description=(
+            "The decline in equities from the last close before US and Israeli strikes on Iran "
+            "began on 28 February 2026 to the 30 March 2026 low, as shipping through the "
+            "Strait of Hormuz was disrupted and oil prices rose sharply."
+        ),
+        start=date(2026, 2, 27),
+        end=date(2026, 3, 30),
     ),
 )
 

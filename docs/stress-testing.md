@@ -61,6 +61,18 @@ label is corrected once:
 | `ai_trade_reversal_2024` | Mid-2024 AI and semiconductor sell-off | 2024-07-10 to 2024-08-07 |
 | `deepseek_shock_2025` | DeepSeek shock | 2025-01-24 to 2025-01-27 |
 | `india_us_tariffs_2025` | 2025 US tariffs on Indian goods (India) | 2025-06-27 to 2025-08-08 |
+| `september_11_attacks_2001` | September 2001 attacks | 2001-09-10 to 2001-09-21 |
+| `us_iran_tensions_january_2020` | January 2020 US-Iran escalation | 2020-01-02 to 2020-01-08 |
+| `russia_ukraine_invasion_2022` | Russian invasion of Ukraine | 2022-02-09 to 2022-03-08 |
+| `israel_hamas_war_2023` | October 2023 Israel-Hamas war | 2023-10-06 to 2023-10-27 |
+| `iran_israel_strikes_april_2024` | April 2024 Iran-Israel strikes | 2024-04-12 to 2024-04-19 |
+| `india_pakistan_conflict_2025` | May 2025 India-Pakistan conflict (India) | 2025-05-06 to 2025-05-09 |
+| `israel_iran_war_june_2025` | June 2025 Israel-Iran war | 2025-06-12 to 2025-06-23 |
+| `iran_war_2026` | 2026 Iran war | 2026-02-27 to 2026-03-30 |
+
+A scenario named for a conflict replays the market's moves over those dates and
+nothing else. It is not a statement about the conflict, and the returns in the
+window reflect everything else that happened in those weeks too.
 
 Windows for global episodes follow the S&P 500's peak and trough, and those marked
 (India) follow the Nifty 50's, or the Sensex's for the two episodes before 2007. A
