@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import json
+import shutil
 import uuid
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
+from httpx import ASGITransport, AsyncClient
 
+from app.database import get_db_session
+from app.main import create_app
 from tests.conftest import requires_postgres
 
 pytestmark = [pytest.mark.integration, requires_postgres]
@@ -525,14 +531,174 @@ async def test_analyzing_an_empty_portfolio_is_rejected(api):
     assert response.json()["error"]["code"] == "portfolio_empty"
 
 
-async def test_analyzing_a_portfolio_with_no_market_data_is_rejected(api):
+async def test_analyzing_a_period_with_no_market_data_is_rejected(api):
     headers = await _signed_in_user(api)
     portfolio_id = await _portfolio(api, headers, [("SPY", "10", "300")], refresh=False)
 
-    response = await _run(api, headers, portfolio_id)
+    # The run fetches its own window, and for this one the provider has nothing:
+    # the committed series begins in 2007.
+    response = await _run(api, headers, portfolio_id, start="2001-01-02", end="2001-12-31")
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "no_market_data"
+
+
+async def test_an_analysis_fetches_the_prices_it_needs(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(
+        api, headers, [("AAPL", "10", "100"), ("SPY", "5", "300")], refresh=False
+    )
+
+    # No refresh was ever asked for. The run fetches its own window.
+    response = await _run(api, headers, portfolio_id)
+
+    assert response.status_code == 201, response.text
+    metrics = _metrics(response.json())
+    assert metrics["analysis_observations"]["value"] is not None
+    assert float(metrics["analysis_observations"]["value"]) > 400
+    assert metrics["volatility_annualized"]["value"] is not None
+
+
+async def test_an_analysis_fetches_only_the_window_it_was_given(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("SPY", "10", "300")], refresh=False)
+
+    await _run(api, headers, portfolio_id, start="2023-06-01", end="2023-12-29")
+
+    stored = await api.get(
+        "/api/v1/assets/SPY/prices",
+        params={"start": "2022-01-03", "end": "2023-12-29", "refresh": "false"},
+        headers=headers,
+    )
+    assert stored.json()["start"] >= "2023-06-01"
+
+
+async def test_an_analysis_names_a_holding_whose_prices_begin_late(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("SPY", "10", "300")], refresh=False)
+
+    # The committed series begins in January 2007, six months into this window.
+    response = await _run(api, headers, portfolio_id, start="2006-07-03", end="2007-12-31")
+
+    assert response.status_code == 201, response.text
+    notes = " ".join(response.json()["notes"])
+    assert "Prices begin after the start of the period for SPY (2007-01-01)" in notes
+    assert "no earlier prices to fetch" in notes
+
+
+async def test_an_analysis_over_a_fully_covered_window_has_no_late_start_note(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("SPY", "10", "300")])
+
+    response = await _run(api, headers, portfolio_id)
+
+    assert "Prices begin after" not in " ".join(response.json()["notes"])
+
+
+@pytest.fixture
+async def api_with_a_new_listing(settings, db_session, tmp_path):
+    """A client whose data source has one instrument that began trading last week.
+
+    The committed series all start on the same day, and an analysis fetches its
+    own window, so a short history cannot be produced by withholding a refresh.
+    It has to be a fact about the source: here NEWCO has eight days of prices and
+    nothing earlier to fetch.
+    """
+    source = Path(__file__).resolve().parents[2] / "fixtures" / "market_data"
+    for name in ("SPY.csv", "AAPL.csv"):
+        shutil.copy(source / name, tmp_path / name)
+
+    lines = (source / "MSFT.csv").read_text(encoding="utf-8").splitlines()
+    recent = [line for line in lines[1:] if "2023-12-19" <= line[:10] <= "2023-12-29"]
+    (tmp_path / "NEWCO.csv").write_text("\n".join([lines[0], *recent]) + "\n", encoding="utf-8")
+
+    assets = [
+        item
+        for item in json.loads((source / "assets.json").read_text(encoding="utf-8"))
+        if item["symbol"] in {"SPY", "AAPL"}
+    ]
+    assets.append({**assets[-1], "symbol": "NEWCO", "name": "Newly Listed Co."})
+    (tmp_path / "assets.json").write_text(json.dumps(assets), encoding="utf-8")
+
+    application = create_app(
+        settings.model_copy(update={"market_data_fixture_root": str(tmp_path)})
+    )
+
+    async def _override():
+        yield db_session
+
+    application.dependency_overrides[get_db_session] = _override
+    transport = ASGITransport(app=application)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as http_client:
+        yield http_client
+    application.dependency_overrides.clear()
+
+
+async def test_a_holding_with_too_little_history_is_excluded_and_named(api_with_a_new_listing):
+    api = api_with_a_new_listing
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(
+        api,
+        headers,
+        [("AAPL", "10", "100"), ("SPY", "5", "300"), ("NEWCO", "10", "100")],
+        refresh=False,
+    )
+
+    response = await _run(api, headers, portfolio_id)
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    metrics = _metrics(body)
+    observations = metrics["analysis_observations"]
+    excluded = observations["metadata"]["excluded_holdings"]
+    assert [item["symbol"] for item in excluded] == ["NEWCO"]
+    assert excluded[0]["price_observations"] == 9
+    assert excluded[0]["weight"] > 0
+    # The other two are analysed over the whole window, not over NEWCO's week.
+    assert observations["metadata"]["symbols"] == ["AAPL", "SPY"]
+    assert float(observations["value"]) > 400
+    assert metrics["value_at_risk_historical"]["value"] is not None
+    assert "NEWCO (9 days)" in " ".join(body["notes"])
+
+
+async def test_an_excluded_holding_still_counts_towards_the_portfolios_value(
+    api_with_a_new_listing,
+):
+    api = api_with_a_new_listing
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(
+        api, headers, [("SPY", "5", "300"), ("NEWCO", "10", "100")], refresh=False
+    )
+
+    metrics = _metrics((await _run(api, headers, portfolio_id)).json())
+    summary = (await api.get(f"{PORTFOLIOS}/{portfolio_id}/summary", headers=headers)).json()
+
+    # Left out of the statistics, not out of the portfolio.
+    assert float(metrics["holdings_count"]["value"]) == 2
+    assert float(metrics["portfolio_value"]["value"]) == pytest.approx(
+        float(summary["total_market_value"])
+    )
+
+
+async def test_nothing_is_excluded_when_every_holding_is_new(api_with_a_new_listing):
+    api = api_with_a_new_listing
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("NEWCO", "10", "100")], refresh=False)
+
+    body = (await _run(api, headers, portfolio_id)).json()
+
+    # With nothing longer to protect, the run says what it could not compute.
+    assert _metrics(body)["analysis_observations"]["metadata"]["excluded_holdings"] == []
+    assert body["status"] == "partial"
+
+
+async def test_an_analysis_reports_the_minimum_history_it_requires(api):
+    headers = await _signed_in_user(api)
+    portfolio_id = await _portfolio(api, headers, [("SPY", "10", "300")])
+
+    metrics = _metrics((await _run(api, headers, portfolio_id)).json())
+
+    assert metrics["analysis_observations"]["metadata"]["minimum_price_observations"] == 31
 
 
 async def test_a_single_asset_portfolio_reports_correlation_as_unavailable(api):

@@ -2392,7 +2392,7 @@
           "analytics"
         ],
         "summary": "Run a risk analysis",
-        "description": "Computes performance and risk metrics over a window and stores the result with its parameters, so it can be explained and reproduced later.\n\nA metric that cannot be computed is returned with a null value and a reason, and the run's status becomes `partial`. Missing data is never reported as zero.\n\nPortfolio returns use **today's weights applied to historical asset returns**. That assumption is stated in the run's `notes` and on each affected metric.",
+        "description": "Computes performance and risk metrics over a window and stores the result with its parameters, so it can be explained and reproduced later.\n\nA metric that cannot be computed is returned with a null value and a reason, and the run's status becomes `partial`. Missing data is never reported as zero.\n\nPortfolio returns use **today's weights applied to historical asset returns**. That assumption is stated in the run's `notes` and on each affected metric.\n\nPrices for the analysis window are fetched for every holding before the run, so no separate refresh is needed. Only missing days are requested. A holding whose prices could not be fetched, or whose prices begin after the start of the window, is named in the run's `notes`.",
         "operationId": "create_analysis_run_api_v1_portfolios__portfolio_id__analysis_runs_post",
         "parameters": [
           {

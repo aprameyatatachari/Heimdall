@@ -379,6 +379,17 @@ are reconstructed by applying today's weights to historical asset returns, which
 is an approximation. The backend returns this as an assumption — surface it, do
 not paraphrase it away.
 
+**Prices are fetched by the run.** `POST /analysis-runs` fetches its own window,
+so the parameters form offers no fetch button. It still shows which holdings have
+no stored prices for the window on screen, as a note, because that is where a
+reader learns that a holding which began trading late will shorten the period.
+
+**Excluded holdings are stated above the figures.** When
+`analysis_observations.metadata.excluded_holdings` is not empty, a notice names
+each one with its days of history and its share of the portfolio's value, and
+says the figures below describe the other holdings. Never bury this in the
+assumptions list: it changes what every number on the screen is a measure of.
+
 ### 6.8 Stress testing — `/app/portfolios/:id/stress`
 
 `GET /stress-scenarios` lists the historical catalogue; `POST

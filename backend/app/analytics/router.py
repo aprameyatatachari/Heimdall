@@ -170,6 +170,15 @@ async def get_return_history(
     )
 
 
+# Appended to the analysis-run endpoint's description below.
+AUTO_FETCH_NOTE = (
+    "\n\nPrices for the analysis window are fetched for every holding before the "
+    "run, so no separate refresh is needed. Only missing days are requested. A "
+    "holding whose prices could not be fetched, or whose prices begin after the "
+    "start of the window, is named in the run's `notes`."
+)
+
+
 @portfolio_router.post(
     "/{portfolio_id}/analysis-runs",
     response_model=AnalysisRunResponse,
@@ -182,6 +191,7 @@ async def get_return_history(
         "and the run's status becomes `partial`. Missing data is never reported as zero.\n\n"
         "Portfolio returns use **today's weights applied to historical asset returns**. "
         "That assumption is stated in the run's `notes` and on each affected metric."
+        + AUTO_FETCH_NOTE
     ),
 )
 async def create_analysis_run(

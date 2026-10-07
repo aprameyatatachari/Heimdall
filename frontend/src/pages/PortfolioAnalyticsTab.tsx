@@ -15,9 +15,11 @@ import { MetricTile } from "@/components/MetricTile";
 import { Panel } from "@/components/Panel";
 import { Select } from "@/components/Select";
 import { Empty, Failed, Loading } from "@/components/states";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatPercent } from "@/lib/format";
 import {
   indexResults,
+  metricMetaNumber,
+  readExcludedHoldings,
   runParameters,
   TILE_GROUPS,
   unavailableResults,
@@ -94,6 +96,11 @@ export function PortfolioAnalyticsTab() {
   const parameters = runParameters(run.data);
   const results = indexResults(run.data);
   const unavailable = unavailableResults(run.data);
+  const excluded = readExcludedHoldings(results["analysis_observations"]);
+  const minimumPrices = metricMetaNumber(
+    results["analysis_observations"],
+    "minimum_price_observations",
+  );
   const valueSeries = results["portfolio_value_series"];
   const holdings = summary.data?.holdings ?? [];
 
@@ -206,6 +213,42 @@ export function PortfolioAnalyticsTab() {
                   </li>
                 ))}
               </ul>
+            </Alert>
+          )}
+
+          {/* --- What this run left out ----------------------------------- */}
+          {excluded.length > 0 && (
+            <Alert tone="caution" title="Some holdings are not in these statistics">
+              <p className="mb-2">
+                They have too little price history in this period
+                {minimumPrices
+                  ? `, fewer than the ${minimumPrices} days a risk measure needs`
+                  : ""}
+                . Including one would have limited every measure for the whole portfolio to its
+                few days, so the return and risk figures below describe the other holdings, with
+                their weights rescaled to sum to one.
+              </p>
+              <ul className="flex flex-col gap-1.5">
+                {excluded.map((holding) => (
+                  <li key={holding.symbol}>
+                    <span className="text-ink">{holding.symbol}</span> excluded:{" "}
+                    {holding.priceObservations === null
+                      ? "too little history"
+                      : `${holding.priceObservations} ${holding.priceObservations === 1 ? "day" : "days"} of history`}
+                    {holding.weight !== null && (
+                      <>
+                        {" "}
+                        · {formatPercent(holding.weight, { digits: 1 })} of the
+                        portfolio&rsquo;s value
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2">
+                The portfolio&rsquo;s value and holdings count still include them. They rejoin
+                the statistics once they have traded for long enough.
+              </p>
             </Alert>
           )}
 

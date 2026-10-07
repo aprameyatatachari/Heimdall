@@ -139,6 +139,29 @@ export function readRiskAssets(result: RiskResult | undefined): RiskAsset[] {
   });
 }
 
+/** A holding the run left out of its statistics, and how little history it had. */
+export interface ExcludedHolding {
+  symbol: string;
+  priceObservations: number | null;
+  /** Its share of the portfolio's value. Null when it could not be weighed. */
+  weight: number | null;
+}
+
+/** Holdings excluded for too little price history, from `analysis_observations`. */
+export function readExcludedHoldings(result: RiskResult | undefined): ExcludedHolding[] {
+  return readRecords(metadataOf(result), "excluded_holdings").flatMap((holding) => {
+    const symbol = readString(holding, "symbol");
+    if (!symbol) return [];
+    return [
+      {
+        symbol,
+        priceObservations: readNumber(holding, "price_observations"),
+        weight: readNumber(holding, "weight"),
+      },
+    ];
+  });
+}
+
 /** One holding's own sensitivity to the benchmark. */
 export interface AssetBeta {
   symbol: string;

@@ -406,6 +406,8 @@ export interface paths {
          *     A metric that cannot be computed is returned with a null value and a reason, and the run's status becomes `partial`. Missing data is never reported as zero.
          *
          *     Portfolio returns use **today's weights applied to historical asset returns**. That assumption is stated in the run's `notes` and on each affected metric.
+         *
+         *     Prices for the analysis window are fetched for every holding before the run, so no separate refresh is needed. Only missing days are requested. A holding whose prices could not be fetched, or whose prices begin after the start of the window, is named in the run's `notes`.
          */
         post: operations["create_analysis_run_api_v1_portfolios__portfolio_id__analysis_runs_post"];
         delete?: never;

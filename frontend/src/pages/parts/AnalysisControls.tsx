@@ -267,6 +267,7 @@ export function AnalysisControls({
         start={watch("start")}
         end={watch("end")}
         what="analysis"
+        autoFetch
       />
 
       <div className="flex flex-wrap items-center gap-4">

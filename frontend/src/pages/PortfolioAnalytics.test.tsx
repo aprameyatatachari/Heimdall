@@ -3,7 +3,14 @@ import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { AppRoutes } from "@/app/routes";
-import { analysisRun, OLDER_RUN_ID, RUN_ID, runSummary, valuePoints } from "@/test/analytics";
+import {
+  analysisRun,
+  OLDER_RUN_ID,
+  result,
+  RUN_ID,
+  runSummary,
+  valuePoints,
+} from "@/test/analytics";
 import { API, signedInHandlers } from "@/test/handlers";
 import { renderApp } from "@/test/render";
 import { server } from "@/test/server";
@@ -150,6 +157,43 @@ describe("the analytics dashboard", () => {
     expect(tile).not.toBeNull();
     // The unavailable tile must not present any number at all.
     expect(tile?.textContent).not.toMatch(/\d\.\d\d/);
+  });
+
+  it("names a holding left out of the statistics for too little history", async () => {
+    server.use(
+      http.get(`${API}/analysis-runs/${RUN_ID}`, () =>
+        HttpResponse.json(
+          analysisRun({
+            results: [
+              ...analysisRun().results.filter(
+                (item) => item.metric !== "analysis_observations",
+              ),
+              result("analysis_observations", "250", "count", {
+                symbols: ["AAPL", "SPY"],
+                minimum_price_observations: 31,
+                excluded_holdings: [{ symbol: "NSE.BO", price_observations: 8, weight: 0.413 }],
+              }),
+            ],
+          }),
+        ),
+      ),
+    );
+    renderApp(<AppRoutes />, { route: ROUTE });
+
+    const title = await screen.findByText("Some holdings are not in these statistics");
+    const notice = title.closest("[role='alert']") as HTMLElement;
+    expect(notice).toHaveTextContent("NSE.BO excluded: 8 days of history");
+    // How much of the portfolio the figures below do not describe.
+    expect(notice).toHaveTextContent("41.3% of the portfolio");
+    expect(notice).toHaveTextContent(/fewer than the 31 days/);
+    expect(notice).toHaveTextContent(/value and holdings count still include them/i);
+  });
+
+  it("says nothing about exclusions when every holding was analysed", async () => {
+    renderApp(<AppRoutes />, { route: ROUTE });
+
+    await waitForDashboard();
+    expect(screen.queryByText(/not in these statistics/i)).not.toBeInTheDocument();
   });
 
   it("states the fixed-weight reconstruction rather than paraphrasing it away", async () => {

@@ -30,6 +30,7 @@ from app.analytics.snapshot import PortfolioSnapshot, SnapshotBuilder
 from app.common.clock import Clock
 from app.common.errors import NotFoundError
 from app.common.logging import get_logger
+from app.market_data.calendar import trading_days_between
 from app.market_data.service import MarketDataService
 from app.portfolios.repository import PortfolioRepository
 from app.portfolios.service import PortfolioNotFoundError
@@ -66,6 +67,42 @@ class ReturnHistory:
     cumulative_returns: list[float] = field(default_factory=list)
     unavailable_reason: str | None = None
 
+
+# A holding needs this many prices in the window to take part in the statistics:
+# enough for the measures with the highest minimum, Value at Risk and covariance,
+# which need that many returns. Fewer, and it would cap every measure for the
+# whole portfolio at its own handful of days.
+MIN_PRICES_TO_INCLUDE = calc.MIN_OBSERVATIONS_COVARIANCE + 1
+
+
+def split_short_histories(
+    history: dict[str, list[tuple[date, float]]],
+    priced_symbols: list[str],
+) -> tuple[dict[str, list[tuple[date, float]]], list[tuple[str, int]]]:
+    """Separate the holdings with too little history to analyse from the rest.
+
+    Returns the history to analyse and, for each holding left out, its symbol and
+    how many prices it had in the window.
+
+    Only dates on which every holding has a price are used, so one holding with a
+    week of history would otherwise reduce a year-long analysis of everything
+    else to a week. Leaving it out, and saying so, analyses what can be analysed.
+
+    When no holding has enough, nothing is left out: there is no longer analysis
+    to protect, and the run reports what it could not compute as before.
+    """
+    counts = {symbol: len(history.get(symbol, [])) for symbol in priced_symbols}
+    short = sorted(symbol for symbol, count in counts.items() if count < MIN_PRICES_TO_INCLUDE)
+    if not short or len(short) == len(counts):
+        return history, []
+
+    kept = {symbol: series for symbol, series in history.items() if symbol not in short}
+    return kept, [(symbol, counts[symbol]) for symbol in short]
+
+
+# A holding whose prices begin this many trading days into the window is named
+# in the run's notes. A handful of days is a holiday or a late first fetch.
+LATE_START_TOLERANCE = 5
 
 ESTIMATE_NOTE = (
     "All figures are estimates derived from historical data and the stated model "
@@ -400,10 +437,27 @@ class AnalyticsService:
         user_id: uuid.UUID,
         parameters: AnalysisParameters,
     ) -> AnalysisRun:
-        """Compute and persist a risk summary for a portfolio."""
-        portfolio = await self._portfolios.get_owned(portfolio_id, user_id)
+        """Compute and persist a risk summary for a portfolio.
+
+        Prices for the analysis window are fetched first. An analysis of a year
+        that silently ran on the one week of prices that happened to be stored
+        would report most of its measures as unavailable for a reason the reader
+        could do nothing about from the result. Ingestion only fills gaps, so a
+        window that is already stored costs no provider call.
+
+        A holding whose prices cannot be fetched does not stop the run: the
+        failure is recorded in the run's notes and the analysis proceeds on what
+        is stored, as it did before.
+        """
+        portfolio = await self._portfolios.get_owned_with_positions(portfolio_id, user_id)
         if portfolio is None:
             raise PortfolioNotFoundError()
+
+        fetched = await self._market_data.refresh_assets(
+            [position.asset for position in portfolio.positions],
+            start=parameters.start,
+            end=parameters.end,
+        )
 
         run = AnalysisRun(
             portfolio_id=portfolio.id,
@@ -423,11 +477,16 @@ class AnalyticsService:
             start=parameters.start,
             end=parameters.end,
         )
+        history, excluded = split_short_histories(
+            history,
+            [holding.symbol for holding in snapshot.priced_holdings],
+        )
 
         metrics, notes = self._compute(
             snapshot=snapshot,
             history=history,
             parameters=parameters,
+            excluded=excluded,
         )
 
         benchmark_metrics = await self._compute_benchmark(
@@ -436,6 +495,13 @@ class AnalyticsService:
             parameters=parameters,
         )
         metrics.extend(benchmark_metrics)
+
+        if fetched.failures:
+            notes.append(
+                "Prices could not be fetched for "
+                + ", ".join(symbol for symbol, _ in fetched.failures)
+                + " over this period. The analysis used whatever was already stored for them."
+            )
 
         run.data_as_of = snapshot.data_as_of
         run.notes = notes
@@ -484,10 +550,34 @@ class AnalyticsService:
         snapshot: PortfolioSnapshot,
         history: dict[str, list[tuple[date, float]]],
         parameters: AnalysisParameters,
+        excluded: list[tuple[str, int]] | None = None,
     ) -> tuple[list[_Metric], list[str]]:
         """Compute every metric, capturing per-metric failures."""
         metrics: list[_Metric] = []
         notes: list[str] = [ESTIMATE_NOTE, FIXED_WEIGHT_NOTE]
+        excluded = excluded or []
+        weights_now = snapshot.weights()
+        excluded_holdings = [
+            {
+                "symbol": symbol,
+                "price_observations": count,
+                "weight": weights_now.get(symbol),
+            }
+            for symbol, count in excluded
+        ]
+        if excluded:
+            notes.append(
+                "Excluded from the return and risk measures for too little price history "
+                "in this period: "
+                + ", ".join(
+                    f"{symbol} ({count} {'day' if count == 1 else 'days'})"
+                    for symbol, count in excluded
+                )
+                + f". A holding needs at least {MIN_PRICES_TO_INCLUDE} days of prices here. "
+                "The measures describe the remaining holdings, with their weights rescaled "
+                "to sum to one; the portfolio's value and holdings count still include "
+                "the excluded ones."
+            )
 
         total_value = float(snapshot.total_value)
         cost_basis = float(snapshot.total_cost_basis)
@@ -572,9 +662,29 @@ class AnalyticsService:
                     "first_date": aligned.dates[0].isoformat() if aligned.dates else None,
                     "last_date": aligned.dates[-1].isoformat() if aligned.dates else None,
                     "dates_excluded_for_non_overlap": len(aligned.dropped_dates),
+                    "excluded_holdings": excluded_holdings,
+                    "minimum_price_observations": MIN_PRICES_TO_INCLUDE,
                 },
             )
         )
+
+        # The holding with the shortest history sets the period every measure
+        # is computed over. Without naming it, a year-long analysis that covers
+        # three weeks reads as a fault in the tool rather than a fact about one
+        # recently listed holding.
+        late = sorted(
+            (observations[0][0], symbol)
+            for symbol, observations in history.items()
+            if trading_days_between(parameters.start, observations[0][0]) > LATE_START_TOLERANCE
+        )
+        if late:
+            notes.append(
+                "Prices begin after the start of the period for "
+                + ", ".join(f"{symbol} ({first.isoformat()})" for first, symbol in late)
+                + ". Only dates on which every holding has a price are used, so the "
+                f"analysis covers {aligned.base_date.isoformat()} onwards. A holding that "
+                "began trading recently has no earlier prices to fetch."
+            )
 
         if aligned.dropped_dates:
             notes.append(

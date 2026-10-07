@@ -271,6 +271,17 @@ The summary reports `latest_price_fetched_at` per holding and
 fetch among the priced holdings, so it is true of every price on screen rather
 than only the freshest.
 
+### A range with no prices is an answer
+
+Asked for dates on which an instrument did not trade, most often the months
+before it was listed, Yahoo raises an error where it could return nothing. The
+adapter reports that as an empty range. Treating it as an outage made any request
+spanning a listing date fail as "market data unavailable", including an analysis
+of a portfolio that held one recently listed stock.
+
+A refresh of several holdings also survives one that genuinely cannot be reached:
+that holding is reported under `failures` and the others are still updated.
+
 ### Coverage
 
 `GET /portfolios/{id}/market-data/coverage?start=&end=` reports, per holding,

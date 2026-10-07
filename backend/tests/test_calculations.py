@@ -13,11 +13,13 @@ No database, no HTTP, no clock.
 from __future__ import annotations
 
 import math
+from datetime import date, timedelta
 
 import numpy as np
 import pytest
 
 from app.analytics import calculations as calc
+from app.analytics.service import MIN_PRICES_TO_INCLUDE, split_short_histories
 
 TOLERANCE = 1e-12
 
@@ -824,3 +826,52 @@ def test_a_leveraged_copy_captures_more_in_both_directions():
 def test_capture_is_undefined_when_the_benchmark_never_fell():
     with pytest.raises(calc.DegenerateDataError):
         calc.capture_ratio([0.01] * 30, [0.005] * 30, upside=False)
+
+
+# --- Leaving short histories out ------------------------------------------------
+
+
+def _series(days: int) -> list[tuple[date, float]]:
+    return [(date(2024, 1, 1) + timedelta(days=offset), 100.0 + offset) for offset in range(days)]
+
+
+def test_a_holding_with_too_little_history_is_left_out_and_counted():
+    history = {"LONG": _series(250), "NEW": _series(8)}
+
+    kept, excluded = split_short_histories(history, ["LONG", "NEW"])
+
+    assert list(kept) == ["LONG"]
+    assert excluded == [("NEW", 8)]
+
+
+def test_a_holding_with_no_history_at_all_is_named_with_zero_days():
+    # A priced holding with fewer than two bars never reaches the history at all.
+    kept, excluded = split_short_histories({"LONG": _series(250)}, ["LONG", "NEW"])
+
+    assert list(kept) == ["LONG"]
+    assert excluded == [("NEW", 0)]
+
+
+def test_a_holding_at_the_minimum_is_kept():
+    history = {"LONG": _series(250), "EDGE": _series(MIN_PRICES_TO_INCLUDE)}
+
+    kept, excluded = split_short_histories(history, ["LONG", "EDGE"])
+
+    assert sorted(kept) == ["EDGE", "LONG"]
+    assert excluded == []
+
+
+def test_nothing_is_left_out_when_every_holding_is_short():
+    history = {"A": _series(8), "B": _series(5)}
+
+    kept, excluded = split_short_histories(history, ["A", "B"])
+
+    # There is no longer analysis to protect, so nothing is hidden.
+    assert kept == history
+    assert excluded == []
+
+
+def test_nothing_is_left_out_when_every_holding_has_enough():
+    history = {"A": _series(250), "B": _series(200)}
+
+    assert split_short_histories(history, ["A", "B"]) == (history, [])

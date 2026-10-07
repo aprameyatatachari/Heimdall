@@ -13,6 +13,10 @@ import { formatDate } from "@/lib/format";
  * check happens first, while there is still a decision to make: fetch the
  * prices, change the window, or go ahead knowing what is left out.
  *
+ * Before an analysis there is nothing to press: running one fetches its own
+ * window. The notice still appears, because it is the only place that says a
+ * holding which began trading late will shorten what the analysis can cover.
+ *
  * It renders nothing when coverage is complete, and nothing while it is still
  * being checked: a warning that flashes up and vanishes is worse than none.
  */
@@ -21,12 +25,18 @@ export function CoverageWarning({
   start,
   end,
   what,
+  autoFetch = false,
 }: {
   portfolioId: string;
   start: string;
   end: string;
   /** What is about to run, for the sentence: "analysis" or "scenario". */
   what: string;
+  /**
+   * Whether running fetches the missing prices itself, as an analysis does.
+   * The notice then says so and offers no button: the next step is to run.
+   */
+  autoFetch?: boolean;
 }) {
   const valid = /^\d{4}-\d{2}-\d{2}$/.test(start) && /^\d{4}-\d{2}-\d{2}$/.test(end);
   const coverage = usePriceCoverage(portfolioId, valid ? { start, end } : null);
@@ -40,7 +50,7 @@ export function CoverageWarning({
 
   return (
     <Alert
-      tone="caution"
+      tone={autoFetch ? "info" : "caution"}
       title={
         everyHoldingMissing
           ? "No holding has prices for this period"
@@ -49,9 +59,11 @@ export function CoverageWarning({
     >
       <p>
         {formatDate(coverage.data.start)} to {formatDate(coverage.data.end)}.{" "}
-        {everyHoldingMissing
-          ? `The ${what} cannot produce anything until prices for it are fetched.`
-          : `The ${what} would run on the holdings that are covered and leave the rest out, so its charts would describe only part of this portfolio.`}
+        {autoFetch
+          ? `Not stored yet. Running the ${what} fetches them first. A holding that began trading after the start of the period has no earlier prices to fetch, and the ${what} then covers only the dates every holding shares.`
+          : everyHoldingMissing
+            ? `The ${what} cannot produce anything until prices for it are fetched.`
+            : `The ${what} would run on the holdings that are covered and leave the rest out, so its charts would describe only part of this portfolio.`}
       </p>
 
       <ul className="mt-2 flex flex-col gap-1">
@@ -70,23 +82,25 @@ export function CoverageWarning({
         ))}
       </ul>
 
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button
-          size="sm"
-          loading={fetchPrices.isPending}
-          onClick={() => fetchPrices.mutate({ start, end })}
-        >
-          Fetch prices for this period
-        </Button>
-        {fetchPrices.isError && (
-          <span className="text-negative text-xs">{messageFor(fetchPrices.error)}</span>
-        )}
-        {fetchPrices.isSuccess && !coverage.isFetching && (
-          <span className="text-ink-dim text-xs">
-            Fetched. Anything still listed is not available from the provider for this period.
-          </span>
-        )}
-      </div>
+      {!autoFetch && (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Button
+            size="sm"
+            loading={fetchPrices.isPending}
+            onClick={() => fetchPrices.mutate({ start, end })}
+          >
+            Fetch prices for this period
+          </Button>
+          {fetchPrices.isError && (
+            <span className="text-negative text-xs">{messageFor(fetchPrices.error)}</span>
+          )}
+          {fetchPrices.isSuccess && !coverage.isFetching && (
+            <span className="text-ink-dim text-xs">
+              Fetched. Anything still listed is not available from the provider for this period.
+            </span>
+          )}
+        </div>
+      )}
     </Alert>
   );
 }

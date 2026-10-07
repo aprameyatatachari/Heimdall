@@ -375,7 +375,10 @@ class MarketDataService:
                 summary.results.append(
                     await self.ingest(asset=asset, window=window, refresh_latest=refresh_latest)
                 )
-            except (ProviderError, ValidationError) as exc:
+            # `ingest` reports an unreachable provider as MarketDataUnavailableError,
+            # so that is the failure to catch here; catching only the provider's
+            # own error let one unreachable symbol fail the whole refresh.
+            except (ProviderError, MarketDataUnavailableError, ValidationError) as exc:
                 logger.warning(
                     "market_data_refresh_failed",
                     symbol=asset.symbol,

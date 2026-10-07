@@ -53,7 +53,10 @@ class _Ticker:
 
     def history(self, **kwargs: object) -> _Frame:
         del kwargs  # the adapter's arguments are checked by the tests that matter
-        return _STUB["history"]
+        frame = _STUB["history"]
+        if isinstance(frame, Exception):
+            raise frame
+        return frame
 
 
 class _Search:
@@ -334,6 +337,27 @@ async def test_prices_are_returned_in_date_order(provider):
 async def test_an_empty_history_is_not_an_error(provider):
     # A symbol with no trading in the window is a fact, not a failure.
     assert await provider.get_daily_prices("X", start=date(2026, 1, 1), end=date(2026, 1, 2)) == []
+
+
+async def test_a_range_before_the_listing_is_empty_not_an_outage(provider):
+    # yfinance raises this for dates on which a known symbol did not trade, which
+    # is every date before a recent listing. Reporting it as "Yahoo unreachable"
+    # made an analysis of a portfolio holding one new listing fail outright.
+    class YFPricesMissingError(Exception):
+        pass
+
+    _STUB["history"] = YFPricesMissingError("Data doesn't exist for startDate")
+
+    assert (
+        await provider.get_daily_prices("NEW", start=date(2025, 1, 1), end=date(2025, 6, 1)) == []
+    )
+
+
+async def test_any_other_history_failure_is_still_an_outage(provider):
+    _STUB["history"] = RuntimeError("connection reset")
+
+    with pytest.raises(ProviderUnavailableError):
+        await provider.get_daily_prices("X", start=date(2026, 1, 1), end=date(2026, 1, 2))
 
 
 async def test_a_slow_vendor_is_given_up_on():

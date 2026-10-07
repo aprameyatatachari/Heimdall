@@ -117,6 +117,10 @@ def existing_is_nse(existing: AssetSearchResult | None) -> bool:
     return existing is not None and existing.symbol.upper().endswith(".NS")
 
 
+# What yfinance raises when a range holds no prices for a symbol it does know.
+NO_PRICES_IN_RANGE = "YFPricesMissingError"
+
+
 class YahooMarketDataProvider(MarketDataProvider):
     """Daily prices and reference data from Yahoo Finance."""
 
@@ -299,15 +303,25 @@ class YahooMarketDataProvider(MarketDataProvider):
         import yfinance
 
         def run() -> list[dict[str, Any]]:
-            frame = yfinance.Ticker(symbol).history(
-                start=start.isoformat(),
-                # Yahoo's `end` is exclusive; Heimdall's is inclusive.
-                end=(end + timedelta(days=1)).isoformat(),
-                interval="1d",
-                auto_adjust=False,
-                actions=False,
-                raise_errors=True,
-            )
+            try:
+                frame = yfinance.Ticker(symbol).history(
+                    start=start.isoformat(),
+                    # Yahoo's `end` is exclusive; Heimdall's is inclusive.
+                    end=(end + timedelta(days=1)).isoformat(),
+                    interval="1d",
+                    auto_adjust=False,
+                    actions=False,
+                    raise_errors=True,
+                )
+            except Exception as exc:
+                # Asked for dates on which the instrument did not trade, most
+                # often the months before it was listed, Yahoo raises instead
+                # of returning nothing. That is an answer, not an outage: there
+                # are no prices in the range. Matched by name so the vendor's
+                # exception types stay out of this module's imports.
+                if type(exc).__name__ == NO_PRICES_IN_RANGE:
+                    return []
+                raise
             if frame is None or frame.empty:
                 return []
             rows: list[dict[str, Any]] = []

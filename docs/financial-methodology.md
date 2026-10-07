@@ -373,6 +373,38 @@ a **portfolio-wide** shock.
 
 See [early-warning.md](./early-warning.md) for every rule's formula and defaults.
 
+## Which prices an analysis uses
+
+**The run fetches its own window.** Before anything is computed, prices for the
+analysis window are fetched for every holding. Only missing days are requested,
+so a window already stored costs no provider call. A holding whose prices could
+not be fetched is named in the run's notes and the analysis proceeds on what is
+stored.
+
+**Common dates only.** A return is computed only between dates on which every
+analysed holding has a price. The holding with the shortest history therefore
+sets the period every measure covers. When a holding's prices begin more than a
+few days after the window starts, the run's notes name it and give the date the
+analysis actually covers from.
+
+**A holding with too little history is left out, and named.** A holding with
+fewer than 31 prices in the window (30 returns, the minimum for Value at Risk and
+covariance) is excluded from the return and risk measures:
+
+- Otherwise one holding listed last week would reduce a year-long analysis of
+  everything else to a week, and most measures would be unavailable.
+- The remaining holdings are analysed with their weights rescaled to sum to one.
+- Each excluded holding is listed in `analysis_observations.metadata.excluded_holdings`
+  with its symbol, its number of prices and its weight, and in the run's notes.
+- The portfolio's value and holdings count still include it. It is left out of
+  the statistics, not out of the portfolio.
+- **When no holding has enough history, none is excluded.** There is no longer
+  analysis to protect, and the run reports what it could not compute.
+
+The threshold is a minimum for computing anything at all, not a judgement about
+how much history is enough. A holding with two months of prices is included and
+limits the analysis to two months; the notes say so.
+
 ## Edge cases
 
 Handled explicitly, never with a zero:

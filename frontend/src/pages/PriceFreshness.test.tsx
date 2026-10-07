@@ -319,6 +319,12 @@ describe("missing prices are flagged before anything is drawn", () => {
     const warning = await screen.findByText(/some holdings have no prices for this period/i);
     // A holding whose prices start late is said to start late, with the dates.
     expect(warning.closest("[role='alert']")).toHaveTextContent(/prices only from Jun 1, 2023/);
+    // An analysis fetches its own window, so there is nothing to press first.
+    const notice = warning.closest("[role='alert']") as HTMLElement;
+    expect(notice).toHaveTextContent(/running the analysis fetches them first/i);
+    expect(
+      within(notice).queryByRole("button", { name: /fetch prices for this period/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("says nothing when every holding is covered", async () => {
